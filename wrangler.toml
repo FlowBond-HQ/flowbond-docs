@@ -1,0 +1,11 @@
+# Cloudflare Pages — docs.flowbond.life
+#
+# Deploy is by CLI from a clean tree (see README). Two environments:
+#   test        → branch `test`, the validation preview
+#   production  → branch `main`
+#
+# Cloudflare Pages ONLY. Never Vercel. (Ecosystem rule, locked July 2026.)
+
+name = "flowbond-docs"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-08-14"

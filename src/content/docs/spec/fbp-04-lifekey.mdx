@@ -163,7 +163,9 @@ membership, a right that is personal and not economic.
 
 ## §4.6 Amendment and succession
 
-<Mermaid title="Amendment path: only the sealed rule can change a sealed trust.">
+<Mermaid
+  title="Amendment path: only the sealed rule can change a sealed trust."
+  chart={`
 flowchart TD
   A["Proposed amendment"] --> B{"Does the sealed<br/>amendment_rule permit<br/>this class of change?"}
   B -- no --> R["REJECT · the trust cannot be<br/>amended from outside its own rules"]
@@ -174,7 +176,8 @@ flowchart TD
   E --> F
   D -- no --> F["Mandatory delay elapses"]
   F --> G["fbp04.trust.amended appended<br/>original seal remains readable"]
-</Mermaid>
+`}
+/>
 
 - The `amendment_rule` MUST be sealed at creation and MUST itself be amendable only if it
   explicitly says so. A trust whose amendment rule can be replaced by a simple majority

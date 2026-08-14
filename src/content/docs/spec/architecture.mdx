@@ -43,7 +43,9 @@ architectural. A privileged bypass introduced for a launch deadline outlives the
 deadline by years. The layering rule is enforceable by review: an implementation either
 has a call path from Plane 4 to Plane 1 that skips Plane 2, or it does not.
 
-<Mermaid title="Permitted call paths between planes. Every arrow crosses exactly one boundary.">
+<Mermaid
+  title="Permitted call paths between planes. Every arrow crosses exactly one boundary."
+  chart={`
 flowchart TD
   P4["Plane 4 · Applications"] --> P3["Plane 3 · Companion OS"]
   P4 --> P2["Plane 2 · Protocol · Layer 0"]
@@ -52,7 +54,8 @@ flowchart TD
   P1 --> P0["Plane 0 · Resilience Transport"]
   P4 -. forbidden .-> P1
   P3 -. forbidden .-> P0
-</Mermaid>
+`}
+/>
 
 An application MAY call Plane 2 directly without an agent; Plane 3 is OPTIONAL in a
 deployment. What is forbidden is skipping *downward* past a plane that is present.
@@ -171,7 +174,9 @@ The offline-first floor. Full requirements at [Transport](/spec/transport/).
   eventual consistency as an error state to a person, and MUST show pending events as
   pending rather than as failed or as settled.
 
-<Mermaid title="Lifecycle of an event from local signature to reconciled ledger state.">
+<Mermaid
+  title="Lifecycle of an event from local signature to reconciled ledger state."
+  chart={`
 sequenceDiagram
   participant U as Person / Agent
   participant P as Primitive (Plane 2)
@@ -188,7 +193,8 @@ sequenceDiagram
   M->>Q: peer events
   Note over Q: deterministic merge<br/>FBP-00 §merge
   Q-->>U: reconciled
-</Mermaid>
+`}
+/>
 
 ## §1.7 What the architecture guarantees
 

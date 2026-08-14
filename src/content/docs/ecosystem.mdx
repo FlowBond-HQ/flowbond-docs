@@ -1,0 +1,75 @@
+---
+title: Ecosystem
+description: Non-normative index of implementations and consumers of the FlowBond Protocol — the only place in this document set where products are named.
+normative: non-normative
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Non-normative — and the only page where names appear">
+Nothing on this page constrains an implementation. It exists because
+[Rule 01](/spec/#the-consumer-boundary) keeps product names out of the specification
+body, and a reader still reasonably wants to know what has been built.
+
+Listing here is **not** a conformance certification. A conformance claim is a public,
+verifiable statement made by the implementer — see [/audit](/audit/).
+</Aside>
+
+## How to read this page
+
+The specification does not know its consumers. That is a structural commitment, not
+modesty: a Layer 0 whose text names its own applications grows privileged paths for
+those applications, and privileged paths are how a protocol quietly becomes a product.
+
+So this page is fenced off. Nothing here may be cited as a normative source, and no
+entry on this list has any protocol capability that any other implementer lacks.
+
+## Reference implementations
+
+Maintained by the editor. Their license is subject to the
+[open license question](/spec/license/).
+
+| Component | Covers | Status |
+| --- | --- | --- |
+| Ledger core | `FBP-00` event model, canonical serialisation, merge | In development |
+| Identity SDK | `FBP-01` identity, claims, grants, auth rails | In development |
+| Split SDK | `FBP-02` splits, conditions, settlement | In development |
+| Credit SDK | `FBP-03` economy instances, spend gate | In development |
+| Trust SDK | `FBP-04` sealed trusts, bindings | In development |
+| Conformance vectors | Test vectors for every checklist item in the spec | In development |
+
+Until a component publishes a conformance claim against a git tag, treat it as
+unverified. The editor holds itself to the same standard it asks of everyone else.
+
+## Consumers
+
+Products built on the protocol. A consumer appears here at its own request; the list is
+not a ranking, and it is not exhaustive.
+
+*No consumer has yet published a conformance claim against `v0.1-draft`. Entries will be
+added as claims are published, each linking to the claim and the tag it was verified
+against.*
+
+## Getting listed
+
+1. Publish a conformance claim following [/audit](/audit/): the version, the git tag, the
+   primitives implemented, the OPTIONAL behaviours omitted, the proof profiles used, and
+   any documented non-conformance.
+2. Open an issue on the [specification repository](https://github.com/FlowBond-HQ/flowbond-docs)
+   linking to the claim.
+3. The editor adds the entry. The editor does **not** verify the claim — the claim is
+   yours, published in your name, and a third party can reproduce it.
+
+An entry MUST be removed on request, and MUST be removed if the linked claim disappears.
+A listing that outlives its claim is a false endorsement.
+
+## Marks
+
+The FlowBond names and logos are stewarded separately from any software license, by the
+Foundation. Listing here does not grant a licence to use them.
+
+You MAY state that your product **implements the FlowBond Protocol `vX.Y`**, and you
+SHOULD link to your conformance claim when you do. You MUST NOT describe an
+implementation as *certified*, *official* or *endorsed*, because no such status exists.

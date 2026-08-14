@@ -48,6 +48,13 @@ export default defineConfig({
           tag: 'link',
           attrs: { rel: 'alternate', type: 'application/json', href: '/spec.json', title: 'Machine-readable spec index' },
         },
+        {
+          // Dark is the default look. Starlight falls back to the OS preference when
+          // nothing is stored; this pins dark instead, and leaves an explicit choice
+          // by the reader untouched.
+          tag: 'script',
+          content: `try{if(!localStorage.getItem('starlight-theme')){document.documentElement.dataset.theme='dark'}}catch(e){document.documentElement.dataset.theme='dark'}`,
+        },
       ],
       sidebar: [
         { label: 'Overview', link: '/' },

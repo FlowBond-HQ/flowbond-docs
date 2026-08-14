@@ -1,0 +1,92 @@
+---
+title: Governance & stewardship
+description: Who stewards the FlowBond Protocol, who edits it, how the two are separated, and the commitments that bind both.
+normative: non-normative
+status: draft
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note" title="Non-normative as to the protocol">
+Governance binds the **editors and stewards** of this document. It does not constrain
+implementers, and nothing here is a conformance requirement. It is published because a
+specification whose change process is private is not auditable, whatever its git history
+says.
+</Aside>
+
+## The two bodies
+
+### FlowBond Foundation — steward
+
+**Status: forming. Jurisdiction pending counsel.**
+
+The Foundation stewards the specification and the marks. Its remit:
+
+- Custody of the specification as a public good — that it stays readable, implementable
+  and free of privileged consumers.
+- Custody of the marks, so that "conformant to FlowBond `vX`" remains a verifiable claim
+  rather than a permission granted commercially.
+- Final say on the [license](/spec/license/) question and on `MAJOR` version changes.
+- Appointing and, if necessary, replacing the editor.
+
+Being honest about status matters more than the appearance of structure: the Foundation
+does not yet exist as a legal entity, its jurisdiction is an open question with counsel,
+and until it is formed, its remit is exercised by the author of record with the
+constraints below applying in full. This paragraph will be replaced — via a
+[changelog entry](/changelog/), not silently — when that changes.
+
+### FlowBond Labs — initial editor
+
+**FlowBond Inc., a Delaware corporation.**
+
+Labs is the initial editor. The editor's job is narrow and procedural:
+
+- Maintain the specification text: clarity, consistency, structure, correctness of
+  cross-references.
+- Run the [RFC process](/governance/rfc-process/) — triage, schedule review windows,
+  merge or decline with reasons stated in public.
+- Cut releases: tag, write the changelog entry, publish.
+- Maintain reference implementations and the conformance test vectors.
+
+The editor's job explicitly does **not** include deciding what the protocol is for,
+granting anyone privileged access, or shipping a change without a changelog entry.
+
+### Why they are separate
+
+Labs builds products on the protocol. That is a conflict of interest, and it is
+disclosed rather than denied. The separation exists so the conflict is bounded:
+
+- Labs, as a consumer, has exactly the same protocol rights as every other consumer.
+- The editor role gives Labs procedural power — scheduling, drafting, merging — and no
+  substantive power to introduce a rule that favours its own products.
+- Rule 01 (the protocol does not know its consumers) is the enforcement mechanism. Any
+  change that names a consumer, or that only makes sense for one, is refusable by anyone
+  on those grounds alone.
+- The Foundation, once formed, can replace the editor. Until then, that check is weaker
+  than it should be, which is stated here rather than papered over.
+
+## Standing commitments
+
+These bind the editor and the steward, permanently:
+
+1. **No silent changes.** Every normative change ships with a [changelog](/changelog/)
+   entry naming the date, the author and the rationale. A change without an entry is a
+   defect, and MUST be corrected by appending a further entry.
+2. **Append-only history.** `CHANGELOG.md` entries are never edited and never deleted. A
+   mistaken entry is corrected by a later entry that says so.
+3. **Public review.** No normative change merges without its review window having run in
+   public. See [RFC process](/governance/rfc-process/).
+4. **Reasons in public.** A declined RFC gets a written reason on the RFC itself. "No"
+   is an acceptable answer; an unexplained "no" is not.
+5. **No privileged consumers.** No consumer gets a protocol capability another consumer
+   cannot have.
+6. **Tags are the truth.** Every release is a signed git tag. The rendered site is a
+   convenience; the tag is the artefact. See [/audit](/audit/).
+
+## Credits
+
+Author of record and steward: **Steph**. Contributors are credited in the changelog entry
+of the release that carries their change, and in the git history, which is the part that
+cannot be rewritten.

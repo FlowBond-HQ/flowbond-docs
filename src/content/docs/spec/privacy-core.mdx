@@ -124,7 +124,9 @@ Two mechanisms are defined:
 verifier, provable without the underlying data. Used where the verifier needs a fact
 rather than a window.
 
-<Mermaid title="Selective disclosure: the verifier receives a proof, and every disclosure is itself recorded.">
+<Mermaid
+  title="Selective disclosure: the verifier receives a proof, and every disclosure is itself recorded."
+  chart={`
 sequenceDiagram
   participant V as Verifier / Regulator
   participant S as Subject
@@ -140,7 +142,8 @@ sequenceDiagram
     Note over L: the disclosure itself is<br/>permanently auditable
   end
   V->>L: verify against public commitments
-</Mermaid>
+`}
+/>
 
 ### Lawful process
 

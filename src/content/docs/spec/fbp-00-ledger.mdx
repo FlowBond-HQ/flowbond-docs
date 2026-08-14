@@ -157,14 +157,17 @@ The tie-break is arbitrary but MUST be identical everywhere, which is the whole 
 Mesh-delayed events are the normal case, not the exception. A node MAY receive an event
 whose `causal` parents it has not yet seen, days after it was signed.
 
-<Mermaid title="Merge of a mesh-delayed event into a stream that has moved on.">
+<Mermaid
+  title="Merge of a mesh-delayed event into a stream that has moved on."
+  chart={`
 flowchart LR
   A["e1 · lamport 4"] --> B["e2 · lamport 5"]
   A --> C["e3 · lamport 5<br/>(arrives 6 days late)"]
   B --> D["merge point<br/>order by lamport, then id"]
   C --> D
   D --> E["e4 · lamport 6<br/>causal: [e2, e3]"]
-</Mermaid>
+`}
+/>
 
 Normative merge algorithm:
 

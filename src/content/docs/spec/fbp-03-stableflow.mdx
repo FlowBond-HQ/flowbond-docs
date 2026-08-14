@@ -174,7 +174,9 @@ Normative rules:
 - An agent MUST NOT hold a gate that outlives the task it was granted for, and
   implementations SHOULD scope gates per task rather than per session.
 
-<Mermaid title="An agent spend: the gate is evaluated before anything is signed, and fails closed.">
+<Mermaid
+  title="An agent spend: the gate is evaluated before anything is signed, and fails closed."
+  chart={`
 flowchart TD
   A["Agent intends a spend"] --> B{"Live gate for<br/>agent + economy?"}
   B -- no --> X["REJECT · fail closed"]
@@ -188,7 +190,8 @@ flowchart TD
   E -- no --> G{"Balance sufficient?"}
   G -- no --> X
   G -- yes --> H["Sign fbp03.credit.spent<br/>attributed to agent AND principal"]
-</Mermaid>
+`}
+/>
 
 ## §3.6 Zero-knowledge obligations
 

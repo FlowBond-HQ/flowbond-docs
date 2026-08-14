@@ -1,0 +1,108 @@
+---
+title: Protocol license
+description: The license terms for the FlowBond Protocol specification and its reference implementations — an open question between Apache 2.0 and a BSL that converts to Apache, with the arguments on record.
+specVersion: v0.1-draft
+normative: normative
+status: open
+sidebar:
+  order: 12
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="This page is an OPEN question">
+The license has **not been decided**. This page records the options, the arguments and
+the constraints so that the decision is made in public, through the
+[RFC process](/governance/rfc-process/), and not by default.
+
+Until it resolves, this specification is published for reading, review and RFC
+participation. Implementers SHOULD track this page before shipping a commercial
+implementation.
+</Aside>
+
+## What is being licensed
+
+Three things, which MAY end up under different terms:
+
+1. **The specification text** — this document set. The strong presumption is that spec
+   text MUST be freely readable, quotable and implementable by anyone. No option under
+   consideration changes that.
+2. **Reference implementations** — libraries and SDKs published by the editor.
+3. **The marks** — the names and logos. These are stewarded by the Foundation and are
+   **not** covered by whichever software license is chosen. Trademark terms are separate,
+   and a conformant implementation MUST NOT imply endorsement by using the marks without
+   permission.
+
+## Option A · Apache 2.0
+
+Permissive, from day one, for spec and reference implementations alike.
+
+**For.** Maximum adoption. No adoption friction for enterprises, whose legal review of
+Apache 2.0 is a formality. Includes an explicit patent grant, which matters for a
+protocol with cryptographic constructions. It is what a serious protocol is expected to
+be, and the expectation is itself an asset.
+
+**Against.** Nothing prevents a well-resourced party from taking the reference
+implementation, hosting it as a managed service, and out-distributing the originator
+before the originator has a business. This is not hypothetical; it is the standard
+outcome for infrastructure projects that reach a certain size.
+
+## Option B · BSL 1.1 converting to Apache 2.0
+
+Business Source License on the reference implementations, with an **automatic
+conversion** to Apache 2.0 after a fixed change date (commonly 3–4 years per release).
+The specification text stays permissive regardless.
+
+**For.** Everything is eventually open, on a published schedule, with no discretion left
+to the licensor. Meanwhile a competing managed service of the reference implementation is
+restricted during the window where it would be most damaging. Ordinary use — building a
+product on it, self-hosting, evaluating, contributing — is unrestricted.
+
+**Against.** BSL is not an OSI-approved open-source license, and some organisations have
+blanket policies against non-OSI licenses that no amount of explanation moves. It adds a
+compliance question to every adoption conversation. It can read as a signal that the
+project is a company first and a protocol second — which is precisely the impression a
+Foundation exists to avoid.
+
+## Constraints on any outcome
+
+Whatever is chosen MUST satisfy all of the following. These are not open:
+
+- The **specification text** MUST be freely readable and implementable, with no fee, no
+  registration and no permission required.
+- An independent implementation MUST be possible without a license from the editor.
+- The license MUST NOT discriminate between consumers. A single set of terms applies to
+  everyone; there is no privileged licensee.
+- Any time-limited restriction MUST have a **published, automatic** expiry. A restriction
+  that depends on the licensor's future goodwill MUST NOT be used.
+- The chosen license MUST carry an explicit patent grant covering the protocol's
+  cryptographic constructions, or be accompanied by a separate irrevocable patent
+  non-assertion covenant.
+- The marks MUST remain separately stewarded, so that "conformant" stays a statement a
+  third party can verify rather than a permission the editor grants.
+
+## How this resolves
+
+1. An RFC is opened proposing one option, with the reasoning stated in full.
+2. A public review window of no less than 30 days, per the
+   [RFC process](/governance/rfc-process/).
+3. Counsel review — the Foundation's jurisdiction is still pending, and the answer may
+   depend on where it is formed.
+4. Editor merge, a `MINOR` version bump, and a [CHANGELOG](/changelog/) entry recording
+   the decision and the rationale.
+
+Until then, the honest statement is the one at the top of this page: it is open, and it
+is being decided in the open.
+
+## Interim terms
+
+While this page is marked `open`:
+
+- You MAY read, quote, review, and implement from this specification.
+- You MAY build and run implementations, including commercially, at your own risk of a
+  later change in the reference-implementation terms. The **specification text** will not
+  become more restrictive — that is the one commitment made in advance.
+- You MUST NOT use the FlowBond marks to describe your implementation as endorsed,
+  certified or official.
+- Contributions submitted through the RFC process are accepted on the understanding that
+  they will be licensed under whichever terms this page resolves to.

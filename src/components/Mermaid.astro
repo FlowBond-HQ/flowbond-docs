@@ -1,25 +1,24 @@
 ---
 /**
  * Mermaid diagrams, rendered in the browser from a local bundle — no CDN, no
- * headless-browser build step. The diagram source stays in the page as text,
- * so it is greppable in git and readable with JavaScript off.
+ * headless-browser build step. The diagram source stays in the page as text, so
+ * it is greppable in git and readable with JavaScript off.
+ *
+ * The diagram is passed as a `chart` string rather than as children: inside MDX,
+ * children are parsed as JSX, and mermaid's `<-->` and `<br/>` are not.
  */
 interface Props {
   /** Accessible description of what the diagram shows. Required. */
   title: string;
+  /** Mermaid source. */
+  chart: string;
 }
-const { title } = Astro.props;
-const code = (await Astro.slots.render('default')).replace(/<[^>]+>/g, '').trim();
-const decoded = code
-  .replace(/&quot;/g, '"')
-  .replace(/&#39;/g, "'")
-  .replace(/&lt;/g, '<')
-  .replace(/&gt;/g, '>')
-  .replace(/&amp;/g, '&');
+const { title, chart } = Astro.props;
+const source = chart.trim();
 ---
 
 <figure class="fb-mermaid not-content">
-  <pre class="mermaid" role="img" aria-label={title}>{decoded}</pre>
+  <pre class="mermaid" role="img" aria-label={title}>{source}</pre>
   <figcaption>{title}</figcaption>
 </figure>
 
@@ -38,6 +37,7 @@ const decoded = code
     border: 0;
     font-family: var(--fb-font-mono);
     font-size: 0.78rem;
+    line-height: 1.5;
     color: var(--fb-dim);
     white-space: pre;
   }
@@ -45,12 +45,17 @@ const decoded = code
     display: flex;
     justify-content: center;
   }
+  .fb-mermaid pre.mermaid svg {
+    max-width: 100%;
+    height: auto;
+  }
   .fb-mermaid figcaption {
-    margin-top: 0.8rem;
+    margin-top: 0.85rem;
+    padding-top: 0.7rem;
+    border-top: 1px solid var(--fb-line);
     font-family: var(--fb-font-mono);
     font-size: 0.72rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: var(--fb-dim);
     text-align: center;
   }
@@ -58,7 +63,7 @@ const decoded = code
 
 <script>
   const render = async () => {
-    const nodes = document.querySelectorAll('pre.mermaid:not([data-processed])');
+    const nodes = document.querySelectorAll<HTMLElement>('pre.mermaid:not([data-processed])');
     if (!nodes.length) return;
     const { default: mermaid } = await import('mermaid');
     const dark = document.documentElement.dataset.theme !== 'light';
@@ -81,7 +86,12 @@ const decoded = code
         noteBorderColor: dark ? '#9D8CD4' : '#574398',
       },
     });
-    await mermaid.run({ nodes: Array.from(nodes) as HTMLElement[] });
+    try {
+      await mermaid.run({ nodes: Array.from(nodes) });
+    } catch {
+      // A diagram that fails to render stays readable as its own source text,
+      // which is the point of keeping the source in the page.
+    }
   };
 
   render();

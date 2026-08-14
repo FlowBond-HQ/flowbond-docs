@@ -85,7 +85,9 @@ Evaluation MUST be:
    extend its own expiry, widen its own scope, or disable `step_up_above`. A request to
    do so MUST be routed to the principal as a request, never applied as a change.
 
-<Mermaid title="Where the gate sits: an agent's intent never reaches a primitive unevaluated.">
+<Mermaid
+  title="Where the gate sits: an agent's intent never reaches a primitive unevaluated."
+  chart={`
 flowchart LR
   A["Agent intent"] --> G{"Spend gate<br/>limit · scope · expiry"}
   G -- deny --> D["Recorded denial<br/>agent informed<br/>nothing signed"]
@@ -95,7 +97,8 @@ flowchart LR
   P --> Z["Privacy Core"]
   Z --> Q["Plane 0 queue"]
   A -. MUST NOT exist .-> P
-</Mermaid>
+`}
+/>
 
 ## §A.4 Attribution
 

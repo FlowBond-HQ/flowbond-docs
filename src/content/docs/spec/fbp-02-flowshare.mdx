@@ -134,7 +134,9 @@ Settlement is the record that value actually moved.
 - The external rail reference MUST be committed, not published. Payment processor
   identifiers are a correlation surface and MUST NOT appear on the ledger in cleartext.
 
-<Mermaid title="Settlement state machine. Every transition is an appended event.">
+<Mermaid
+  title="Settlement state machine. Every transition is an appended event."
+  chart={`
 stateDiagram-v2
   [*] --> accrued: value attributed to a split version
   accrued --> releasable: all conditions satisfied
@@ -147,7 +149,8 @@ stateDiagram-v2
   disputed --> releasable: resolution event
   disputed --> [*]: terminated by resolution
   settled --> [*]
-</Mermaid>
+`}
+/>
 
 ## §2.4 Conditional-release profile (escrow)
 

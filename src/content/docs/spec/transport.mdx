@@ -83,7 +83,9 @@ design that only fits on broadband is not a Plane 0 design.
 Three tiers are defined. A node MUST declare its tier, and MUST NOT claim capabilities
 of a higher tier it does not have.
 
-<Mermaid title="The three node tiers and the paths between them.">
+<Mermaid
+  title="The three node tiers and the paths between them."
+  chart={`
 flowchart LR
   L1["Leaf<br/>phone · sensor · handheld"] <--> R1["Relay<br/>solar node · vehicle · shop"]
   L2["Leaf"] <--> R1
@@ -91,7 +93,8 @@ flowchart LR
   R2 <--> G["Gateway<br/>bridges mesh ↔ internet"]
   G <--> I(("Internet<br/>peers"))
   L3["Leaf<br/>fully offline for weeks"] <--> R2
-</Mermaid>
+`}
+/>
 
 **Leaf.** Signs, queues, and syncs opportunistically with any peer in range.
 

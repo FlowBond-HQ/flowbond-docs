@@ -1,0 +1,114 @@
+---
+title: Versioning policy
+description: Semantic versioning applied to a specification — MAJOR is a breaking primitive change, MINOR is additive, PATCH is editorial. What each means in practice, and how implementations declare what they conform to.
+normative: non-normative
+status: draft
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The specification is versioned `MAJOR.MINOR.PATCH`, with a pre-release qualifier while it
+is a draft. The current version is **`v0.1-draft`**.
+
+<Aside type="tip" title="The rule in one line">
+**MAJOR** = a primitive's semantics changed. **MINOR** = something was added and
+everything old still works. **PATCH** = the words changed and the meaning did not.
+</Aside>
+
+## MAJOR — breaking primitive change
+
+Increment `MAJOR` when a conformant implementation of the previous version would no
+longer be conformant, or would compute a different result.
+
+Examples that are `MAJOR`:
+
+- Changing the meaning, required-ness or type of a field in a normative schema.
+- Changing an ordering, merge or allocation rule — anything two nodes must agree on.
+- Removing an event type, a condition kind, a proof profile, or a signature algorithm.
+- Adding a new primitive. `FBP-05` would be `MAJOR`, because the set of four is itself a
+  normative statement.
+- Relaxing or removing a `NEVER` invariant. In practice such a change SHOULD be refused
+  outright rather than versioned — see [RFC process](/governance/rfc-process/#4--editor-decision).
+- Tightening a requirement so that a previously conformant implementation now fails.
+
+`MAJOR` releases require a 60-day public review window and MUST ship with a migration
+note: what breaks, what an implementer must do, and whether the two versions can
+interoperate at all.
+
+## MINOR — additive, backward-compatible
+
+Increment `MINOR` when something is added and every previous conformant implementation
+remains conformant.
+
+Examples that are `MINOR`:
+
+- Adding an OPTIONAL field to a schema.
+- Adding a new event type in a reserved namespace, where ignoring it is safe.
+- Adding a condition kind, a proof-system profile, or a supported hash.
+- Adding an application profile — the [Passport](/spec/profiles/passport/) is `MINOR`,
+  because it adds no primitive.
+- Adding a conformance test vector that tests an existing rule more thoroughly.
+- Resolving an `open` question, such as the [license](/spec/license/), where the
+  resolution does not alter a primitive.
+
+A `MINOR` change MUST NOT make a previously OPTIONAL behaviour REQUIRED. That is `MAJOR`,
+however small it looks.
+
+## PATCH — editorial
+
+Increment `PATCH` for changes that alter no meaning:
+
+- Typography, grammar, cross-reference repairs, formatting.
+- Clarifying wording where the original was ambiguous **and** every reasonable reading of
+  the original is preserved.
+- Adding a rationale, an example, or a non-normative note.
+- Correcting an obviously wrong example that no implementation could have relied on.
+
+<Aside type="caution" title="The clarification trap">
+"Clarifying" a genuine ambiguity is a semantic change, not a `PATCH` — someone
+implemented the other reading. If two competent implementers could have read the old text
+differently, the fix is `MINOR` at least, and it MUST say which reading is now correct.
+</Aside>
+
+## Pre-release qualifiers
+
+| Qualifier | Meaning |
+| --- | --- |
+| `-draft` | Primitives are implementable; wording is open to challenge. Breaking changes MAY occur without a `MAJOR` bump while `MAJOR` is `0`. |
+| `-rc` | Release candidate. No further changes expected except defect fixes. |
+| *(none)* | Stable. Full policy above applies without exception. |
+
+While `MAJOR` is `0`, the protocol is explicitly not promising stability across `MINOR`
+versions. `v1.0` is the commitment point, and it will not be declared until at least two
+independent implementations pass the conformance vectors.
+
+## How implementations declare conformance
+
+An implementation conforms **to a version**, never to "FlowBond". A conformance claim MUST
+name the version and the git tag it was verified against — see
+[the spec's conformance section](/spec/#conformance) and [/audit](/audit/).
+
+- Claiming `v0.1-draft` means: verified against the tag `v0.1-draft`.
+- An implementation that has not re-verified against a newer tag MUST NOT claim the newer
+  version, even if it believes nothing relevant changed.
+- Supporting several versions simultaneously is permitted and SHOULD be declared as a
+  list, with the proof profiles supported for each.
+
+## Version metadata in the document
+
+- Every specification page carries its `specVersion` in frontmatter, rendered as a badge
+  at the top of the page.
+- The machine-readable index at [`/spec.json`](/spec.json) lists every page, its version,
+  its normative status and the SHA-256 hash of its source file.
+- Each release is a git tag. The tag is the artefact of record; the rendered site is a
+  convenience.
+
+## Deprecation
+
+- A deprecated feature MUST be marked in the text, with the version that deprecated it and
+  the version it is expected to be removed in.
+- Deprecation is `MINOR`. Removal is `MAJOR`.
+- The gap between them MUST be at least one `MINOR` release and at least 180 days, so that
+  an implementer who checks quarterly is never surprised.

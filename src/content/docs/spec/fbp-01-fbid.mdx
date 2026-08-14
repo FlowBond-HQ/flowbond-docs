@@ -103,7 +103,7 @@ A **claim** is an attestation by an issuer about a subject. Claims are the unit 
   "id": "c_01J8Y…",
   "subject": "fbid:z6Mk…",
   "issuer": "fbid:z6Mk…",
-  "schema": "https://schemas.flowbond.tech/claim/age-band/1",
+  "schema": "https://docs.flowbond.life/schemas/claim/age-band/1",
   "commitment": { "alg": "sha256", "digest": "…", "salt_commitment": "0x…" },
   "predicates": ["over_18", "over_21"],
   "valid_from": "2026-08-14T00:00:00Z",
@@ -237,7 +237,9 @@ The REQUIRED shape:
    recovery — a support agent who can restore an account is a custodian by another name,
    and MUST NOT exist.
 
-<Mermaid title="The recovery ceremony: quorum, mandatory delay, and the subject's veto.">
+<Mermaid
+  title="The recovery ceremony: quorum, mandatory delay, and the subject's veto."
+  chart={`
 sequenceDiagram
   participant S as Subject (new device)
   participant L as Ledger
@@ -255,7 +257,8 @@ sequenceDiagram
     S->>L: fbp01.recovery.completed
     Note over L: new device key added<br/>old keys revoked forward-only
   end
-</Mermaid>
+`}
+/>
 
 ## §1.7 Zero-knowledge obligations
 

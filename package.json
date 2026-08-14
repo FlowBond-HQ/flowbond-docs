@@ -15,6 +15,7 @@
     "deploy:prod": "pnpm build && wrangler pages deploy dist --project-name=flowbond-docs --branch=main"
   },
   "dependencies": {
+    "@astrojs/markdown-remark": "^7.2.2",
     "@astrojs/starlight": "^0.41.7",
     "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",

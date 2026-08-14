@@ -1,0 +1,137 @@
+---
+title: RFC process
+description: How the FlowBond Protocol specification changes — issue, draft PR, public review window, editor merge, changelog entry. The only door.
+normative: non-normative
+status: draft
+sidebar:
+  order: 2
+---
+
+import Mermaid from '../../../components/Mermaid.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="The only door">
+Every normative change to this specification goes through this process. There is no
+expedited path, no editor's discretion to skip the review window, and no change that is
+"too small" to need a changelog entry.
+</Aside>
+
+## The five steps
+
+<Mermaid
+  title="The RFC lifecycle. Nothing reaches main without passing every gate."
+  chart={`
+flowchart LR
+  A["1 · Issue<br/>the problem, not the fix"] --> B["2 · Draft PR<br/>the actual text"]
+  B --> C["3 · Public review<br/>14 / 30 / 60 days"]
+  C --> D{"4 · Editor decision"}
+  D -- merge --> E["5 · CHANGELOG entry<br/>date · author · rationale"]
+  D -- decline --> F["Written reason<br/>on the RFC"]
+  D -- revise --> B
+  E --> G["Release · git tag"]
+`}
+/>
+
+### 1 · Issue
+
+Open an issue in the [specification repository](https://github.com/FlowBond-HQ/flowbond-docs)
+describing **the problem**, not your preferred fix. A good issue states:
+
+- What an implementer cannot currently do, or can do ambiguously.
+- Which primitive or section is involved.
+- What breaks if nothing changes.
+- Whether you believe it is `MAJOR`, `MINOR` or `PATCH` under the
+  [versioning policy](/governance/versioning/).
+
+The editor triages within a reasonable period, assigns an RFC number, and labels the
+expected change class. Triage is not agreement — it is acknowledgement that the problem
+is stated well enough to discuss.
+
+### 2 · Draft PR
+
+The RFC becomes real when it becomes text. A draft pull request contains:
+
+- The proposed specification wording, in place, in the pages it affects.
+- A **rationale** section: why this wording, what alternatives were rejected, and why.
+- The **compatibility impact**: what an existing conformant implementation must change.
+- Test vectors, where the change affects anything computable.
+- A proposed changelog entry, written as it will be appended.
+
+A draft PR that changes normative text without a rationale section is returned, not
+reviewed.
+
+### 3 · Public review window
+
+The window opens when the editor marks the PR ready for review, and is announced in the
+repository.
+
+| Change class | Minimum window |
+| --- | --- |
+| `PATCH` — editorial, no semantic change | 14 days |
+| `MINOR` — additive, backward-compatible | 30 days |
+| `MAJOR` — breaking change to a primitive | 60 days |
+
+Rules for the window:
+
+- It runs in public. Comments are on the PR, in the open.
+- It **cannot be shortened**. It can be extended by the editor, and MUST be extended if a
+  substantive objection arrives in the final quarter of the window.
+- Substantive changes to the proposal during the window **restart** it. This is what
+  stops a small proposal from growing into a large one under cover of an expiring clock.
+- Silence is not consent, but it is not a veto either. The editor decides on the record
+  that exists at the end of the window.
+
+### 4 · Editor decision
+
+The editor merges, declines, or returns for revision.
+
+- **Merge** requires: the window has run, objections are addressed or answered in
+  writing, the text is consistent with the rest of the specification, and the change does
+  not name or privilege a consumer.
+- **Decline** requires a written reason on the RFC. Acceptable reasons include: the
+  problem is real but belongs in a profile on Plane 4; the change would privilege a
+  consumer; it violates an invariant; the cost to existing implementations exceeds the
+  benefit. "No" with a reason closes the matter until new information appears.
+- **Return for revision** sends it back to step 2, with the specific defect named.
+
+An RFC that would relax a `NEVER` invariant — non-redeemability, zero custody, the
+counselor's non-signatory status, the no-side-doors rule — is refusable on that ground
+alone, and the editor SHOULD refuse it. Those are constitutional; changing one is
+`MAJOR`, and arguably is a different protocol.
+
+### 5 · Changelog entry
+
+The merge is not complete until `CHANGELOG.md` carries an appended entry with:
+
+- Sequence number (monotonic, never reused).
+- Version this change lands in.
+- Date.
+- Author.
+- What changed, in one line per normative change.
+- **Rationale** — why, in the author's own words.
+- Compatibility impact.
+
+Entries are **append-only**. They are never edited and never deleted. A mistaken entry is
+corrected by appending a further entry that references it.
+
+## Who may participate
+
+Anyone. There is no membership, no fee, and no registration. An RFC from an unaffiliated
+implementer is weighed the same as one from the editor.
+
+Editors and stewards MUST follow this process for their own changes. An RFC authored by
+the editor is subject to the same window, and the editor SHOULD invite an independent
+reviewer for any change they authored themselves.
+
+## Emergencies
+
+There is exactly one expedited path, and it is narrow:
+
+- **Security defect.** Where following the normal window would leave implementers exposed,
+  the editor MAY merge a fix immediately, and MUST: publish the changelog entry at the
+  moment of merge, publish the security advisory, and open the retrospective RFC within
+  7 days so that the change gets its public review after the fact.
+- A security advisory MUST NOT be used to carry an unrelated change. A fix that arrives
+  with a feature attached is not a fix.
+
+Nothing else is an emergency. A launch date is not an emergency.

@@ -1,0 +1,116 @@
+---
+/**
+ * Renders CHANGELOG.md — the append-only audit log — as entry cards.
+ *
+ * The file at the repo root is the single source of truth. This component parses
+ * it at build time; it never stores a second copy. If the parse finds no entries
+ * the build fails loudly, because a changelog page that silently renders empty is
+ * worse than no changelog page.
+ */
+import raw from '../../CHANGELOG.md?raw';
+import { createMarkdownProcessor } from '@astrojs/markdown-remark';
+import rehypeNormative from '../../plugins/rehype-normative.mjs';
+
+const processor = await createMarkdownProcessor({ rehypePlugins: [rehypeNormative] });
+
+// Entries start at a heading of the form:  ## 0001 — v0.1-draft
+const ENTRY = /^## (\d{4})\s+[—-]\s+(.+)$/gm;
+
+type Entry = { seq: string; version: string; body: string };
+
+const entries: Entry[] = [];
+const marks = [...raw.matchAll(ENTRY)];
+
+for (const [i, m] of marks.entries()) {
+  const start = m.index! + m[0].length;
+  const end = i + 1 < marks.length ? marks[i + 1].index! : raw.length;
+  entries.push({
+    seq: m[1],
+    version: m[2].trim(),
+    body: raw
+      .slice(start, end)
+      .replace(/^\s*---\s*$/gm, '')
+      .trim(),
+  });
+}
+
+if (entries.length === 0) {
+  throw new Error('ChangelogFeed: no entries parsed from CHANGELOG.md — check the heading format.');
+}
+
+// Newest first for reading; the file itself stays in append order.
+entries.reverse();
+
+const rendered = await Promise.all(
+  entries.map(async (e) => {
+    const meta: Record<string, string> = {};
+    for (const line of e.body.split('\n')) {
+      const f = line.match(/^-\s+\*\*(Date|Author|Class):\*\*\s+(.+)$/);
+      if (f) meta[f[1].toLowerCase()] = f[2].trim();
+    }
+    const body = e.body.replace(/^-\s+\*\*(Date|Author|Class):\*\*.+$/gm, '').trim();
+    const { code } = await processor.render(body);
+    return { ...e, meta, html: code };
+  })
+);
+---
+
+<div class="fb-changelog not-content">
+  {
+    rendered.map((e) => (
+      <article class="fb-entry" id={`entry-${e.seq}`}>
+        <header>
+          <span class="seq">{e.seq}</span>
+          <span class="ver">{e.version}</span>
+          {e.meta.date && <span class="meta">{e.meta.date}</span>}
+          {e.meta.author && <span class="meta">· {e.meta.author}</span>}
+          {e.meta.class && <span class="meta">· {e.meta.class}</span>}
+          <a class="meta permalink" href={`#entry-${e.seq}`} aria-label={`Permalink to entry ${e.seq}`}>
+            #
+          </a>
+        </header>
+        <div class="fb-entry-body" set:html={e.html} />
+      </article>
+    ))
+  }
+</div>
+
+<style is:global>
+  .fb-changelog .fb-entry-body h3 {
+    font-family: var(--fb-font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--fb-dim);
+    margin: 1.1rem 0 0.4rem;
+    font-weight: 500;
+  }
+  .fb-changelog .fb-entry-body h3:first-child {
+    margin-top: 0;
+  }
+  .fb-changelog .fb-entry-body ul {
+    padding-left: 1.1rem;
+    margin: 0.3rem 0;
+  }
+  .fb-changelog .fb-entry-body li {
+    margin: 0.28rem 0;
+  }
+  .fb-changelog .fb-entry-body p {
+    margin: 0.5rem 0;
+    color: var(--fb-dim);
+  }
+  .fb-changelog .fb-entry-body code {
+    font-family: var(--fb-font-mono);
+    font-size: 0.85em;
+    color: var(--fb-gold);
+  }
+  .fb-changelog .permalink {
+    margin-left: auto;
+    text-decoration: none;
+    opacity: 0.45;
+  }
+  .fb-changelog .permalink:hover {
+    opacity: 1;
+    color: var(--fb-gold);
+  }
+</style>

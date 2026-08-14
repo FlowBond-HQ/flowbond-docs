@@ -1,0 +1,166 @@
+---
+title: How to audit
+description: Exact steps to verify a version of the FlowBond Protocol specification against a git tag, check page hashes against the machine-readable index, and publish a conformance claim a third party can reproduce.
+normative: non-normative
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Auditability here is not a promise; it is a procedure you can run. This page is the
+procedure.
+
+<Aside type="tip" title="What is the artefact of record">
+The **git tag** is the specification. This rendered site is a convenience built from it.
+If the site and the tag ever disagree, the tag is correct and the site is a defect.
+</Aside>
+
+## What the audit trail consists of
+
+1. **Git history** — every change to every page, with its author, its diff and its
+   commit. History is never rewritten; force-pushes to `main` are disabled.
+2. **[`CHANGELOG.md`](https://github.com/FlowBond-HQ/flowbond-docs/blob/main/CHANGELOG.md)** —
+   append-only, one entry per change, each with date, author, rationale and compatibility
+   impact. Rendered at [/changelog](/changelog/).
+3. **Tags** — one per release, signed where a signing key is available.
+4. **[`/spec.json`](/spec.json)** — machine-readable index of every page: its route, its
+   version, its normative status, and the SHA-256 of its source file at build time.
+5. **Pull requests** — the RFC record: the proposal, the public review, the objections,
+   and the decision with its reasons.
+
+## Verifying a version
+
+<Steps>
+
+1. **Clone and fetch tags.**
+
+   ```bash
+   git clone https://github.com/FlowBond-HQ/flowbond-docs.git
+   cd flowbond-docs
+   git fetch --tags
+   git tag --list
+   ```
+
+2. **Check out the version you are auditing.**
+
+   ```bash
+   git checkout v0.1-draft
+   ```
+
+3. **Verify the tag signature**, where the tag is signed. An unsigned tag is not
+   worthless — the commit history still constrains it — but a signed tag is the stronger
+   claim.
+
+   ```bash
+   git tag --verify v0.1-draft
+   ```
+
+4. **Confirm the changelog covers this version.** Every normative change in the tag must
+   have an entry. The entry for a version names the version in its heading:
+
+   ```bash
+   grep -n '^## ' CHANGELOG.md
+   ```
+
+5. **Verify page hashes against the published index.** `/spec.json` records the SHA-256
+   of each page's source file as built. Recompute them from the checkout and compare:
+
+   ```bash
+   curl -s https://docs.flowbond.life/spec.json > spec.json
+   node -e '
+     const fs = require("fs"), crypto = require("crypto");
+     const idx = JSON.parse(fs.readFileSync("spec.json", "utf8"));
+     let bad = 0;
+     for (const p of idx.pages) {
+       const local = crypto.createHash("sha256")
+         .update(fs.readFileSync(p.source)).digest("hex");
+       if (local !== p.sha256) { bad++; console.log("MISMATCH", p.source); }
+     }
+     console.log(bad ? bad + " mismatch(es)" : "all " + idx.pages.length + " pages match");
+   '
+   ```
+
+   A mismatch means the deployed site was built from something other than this tag. That
+   is a finding, and it MUST be reported as an issue.
+
+6. **Read the diff since the previous version.** This is the part that actually matters —
+   the hashes tell you *that* something changed, the diff tells you *what*:
+
+   ```bash
+   git diff v0.1-draft..v0.2 -- src/content/docs/
+   ```
+
+</Steps>
+
+## Auditing a change
+
+For any single change, four things should line up. If they do not, that is the finding:
+
+| Question | Where to look |
+| --- | --- |
+| What changed? | `git log -p` on the page |
+| Why? | The rationale in the CHANGELOG entry |
+| Who decided, and did anyone object? | The pull request and its review window |
+| Was the version bump correct? | The change class against the [versioning policy](/governance/versioning/) |
+
+Common findings worth raising:
+
+- A normative change with no changelog entry.
+- A changelog entry that was **edited** rather than superseded — a diff on an existing
+  entry rather than an appended one. The file is append-only; a modification is a defect.
+- A `PATCH` bump that resolved a genuine ambiguity. That is at least `MINOR`, because
+  someone implemented the other reading.
+- A merge whose review window is shorter than the class requires, or which restarted and
+  was not re-run after substantive changes.
+- Text that names or privileges a consumer, in violation of
+  [Rule 01](/spec/#the-consumer-boundary).
+
+## Publishing a conformance claim
+
+A conformance claim is a public statement by an implementer, in their own name. To be
+reproducible it MUST include:
+
+```json title="conformance.json"
+{
+  "implementation": "your-implementation-name",
+  "spec_version": "v0.1-draft",
+  "verified_against_tag": "v0.1-draft",
+  "verified_commit": "<full 40-char commit sha>",
+  "date": "2026-08-14",
+  "primitives": ["FBP-00", "FBP-01", "FBP-03"],
+  "profiles": [],
+  "proof_profiles": ["fbp1.groth16.bn254"],
+  "optional_omitted": ["FBP-01 §1.5 rail 3 (passkey)"],
+  "documented_non_conformance": [
+    {
+      "section": "Privacy Core §P.3",
+      "statement": "residency_class",
+      "reason": "circuit not yet implemented",
+      "resolution": "targeted for v0.2"
+    }
+  ]
+}
+```
+
+Rules that make the claim meaningful:
+
+- Claim a **version**, never "FlowBond". Name the tag and the commit.
+- A partially implemented primitive MUST NOT be claimed. List it under
+  `documented_non_conformance` instead, or leave it out.
+- A gap you cannot yet close belongs in `documented_non_conformance` with a reason and an
+  intended resolution. Publishing the gap is conformant behaviour; hiding it is not — see
+  [Privacy Core §P.7](/spec/privacy-core/#p7-degradation-and-honesty).
+- Re-verify against each new tag before claiming it. Believing nothing relevant changed
+  is not verification.
+
+Then open an issue to be listed in the [ecosystem index](/ecosystem/). The editor lists
+the claim; the editor does not certify it. Nobody certifies it. That is the point — the
+claim is reproducible by anyone who follows this page.
+
+## Reporting a problem with the trail
+
+If the audit trail itself is broken — a rewritten history, an edited changelog entry, a
+tag that does not match the deployed site, a normative change with no entry — open an
+issue labelled `audit`. Defects in the trail take priority over defects in the text,
+because everything else on this page depends on the trail being sound.

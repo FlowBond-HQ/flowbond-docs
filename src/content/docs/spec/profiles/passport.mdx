@@ -1,0 +1,196 @@
+---
+title: Application profile · Passport
+description: A composition proof — points, soulbound honors, quests as ledger events and a life path a person owns, built from FBID, StableFlow and the ledger with zero new primitives.
+specVersion: v0.1-draft
+normative: normative
+status: draft
+sidebar:
+  order: 11
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+The Passport is an **application profile**: a named composition of existing primitives,
+living on Plane 4. It is included in this specification for one reason — it is the
+composition proof. If a document of record with points, honors, quests and a life path
+can be built with **zero new primitives**, the four primitives are sufficient.
+
+<Aside type="caution" title="The boundary">
+The Passport is a profile **ON** the protocol, NEVER **IN** it. Nothing in this profile
+may be relied upon by a primitive, and no primitive may special-case it. A conformant
+protocol implementation that has never heard of the Passport MUST be able to run it.
+</Aside>
+
+## §PP.1 Composition
+
+| Passport concept | Built from | New primitive? |
+| --- | --- | --- |
+| The holder | `FBP-01` identity + claims | No |
+| Points / XP | `FBP-03` economy instance, `decimals: 0` | No |
+| Honors | `FBP-04` soulbound bindings | No |
+| Quests | `FBP-00` events + `FBP-02` conditions | No |
+| Stamps and chapters | `FBP-00` stream projection | No |
+| Off-grid issuance | Plane 0 local signing + queue | No |
+| Companion navigation | Plane 3 agent under a spend gate | No |
+
+<Mermaid
+  title="The Passport as a composition: every element resolves to an existing primitive."
+  chart={`
+flowchart TD
+  PP["Passport profile · Plane 4"]
+  PP --> H["Holder"]
+  PP --> PT["Points"]
+  PP --> HO["Honors"]
+  PP --> Q["Quests"]
+  PP --> LP["Life path"]
+  H --> F1["FBP-01 · FBID"]
+  PT --> F3["FBP-03 · StableFlow<br/>one economy per issuer"]
+  HO --> F4["FBP-04 · soulbound binding"]
+  Q --> F2["FBP-02 · conditions"]
+  Q --> F0["FBP-00 · ledger"]
+  LP --> F0
+  F1 --> F0
+  F2 --> F0
+  F3 --> F0
+  F4 --> F0
+`}
+/>
+
+## §PP.2 The holder and the document
+
+- The holder is an FBID. A Passport MUST NOT introduce an identifier of its own; the
+  Passport **is** a view over an identity's streams.
+- The person owns the document. An issuer writes chapters; it MUST NOT own the book, MUST
+  NOT be able to delete it, and MUST NOT be able to prevent the holder from reading or
+  exporting it in full.
+- **Who issues is data.** A Passport MUST support many issuers writing into one holder's
+  document. The issuer is a field on the entry, not a property of the document, and the
+  document MUST NOT be scoped to a single issuer.
+- The holder MUST be able to export the whole document — every entry from every issuer —
+  in a machine-readable form, at any time, without asking an issuer.
+- A holder MUST be able to present any part of the document as a **proof** rather than as
+  a copy. See §PP.6.
+
+**Rationale (non-normative).** A document whose issuer can revoke, edit or withhold it is
+a permission, not a document. The distinction is the whole point of putting a passport on
+this protocol rather than in a database.
+
+## §PP.3 Points
+
+Points are an `FBP-03` economy instance and inherit every invariant of that primitive,
+including the one that matters most here:
+
+<Aside type="danger" title="Inherited invariant">
+Points NEVER redeem for cash. A Passport implementation MUST NOT offer, and MUST NOT
+accept an agreement purporting to offer, redemption of points for money or a money
+equivalent.
+</Aside>
+
+- Each issuer operates its **own** points instance. Points MUST NOT be fungible across
+  issuers, and no conversion path MUST exist between instances.
+- `decimals` MUST be `0`. Points are counted, not priced.
+- Awarding points is a mint by an authority of that instance, and MUST commit to a
+  reason. An unexplained award is not auditable.
+- Points MAY expire where the instance policy sets expiry. Expiry MUST appear as an
+  attributed burn, with prior notice to the holder (`FBP-03` §3.2).
+- Balances are private (`FBP-03` §3.6). A public leaderboard is therefore an OPTIONAL
+  feature requiring the holder's explicit, revocable grant, and MUST NOT be on by
+  default.
+
+## §PP.4 Honors
+
+Honors are `FBP-04` soulbound bindings.
+
+- An honor MUST be non-transferable. It MUST NOT be sold, lent, wrapped or represented by
+  any transferable token, and the interface MUST NOT be able to express a transfer.
+- **Recognition is NEVER equity.** An honor MUST NOT carry an economic claim, a revenue
+  share, or any entitlement expressible as `FBP-02` or `FBP-03`. Where value is intended,
+  those primitives MUST be used explicitly and visibly.
+- An honor MUST be revocable only under rules sealed at issuance, and revocation MUST
+  leave the original readable as history.
+- An honor MUST be presentable as a proof of class — "holds an honor of this class from
+  an accepted issuer" — without revealing the issuer, the holder's other honors, or the
+  rest of the document.
+
+## §PP.5 Quests
+
+A quest is an `FBP-02` condition set whose satisfaction triggers an award.
+
+```json title="Quest — profile-level object"
+{
+  "id": "qs_01J95…",
+  "issuer": "fbid:z6Mk…I",
+  "holder": "fbid:z6Mk…H",
+  "conditions": ["cond_01J95…"],
+  "award": {
+    "points": { "economy": "ec_01J95…", "amount": 40 },
+    "honor": "bd_class_pathfinder"
+  },
+  "state": "in_progress"
+}
+```
+
+- Every quest step MUST be a ledger event. Progress that exists only in an application
+  database is not part of the Passport and MUST NOT be presented as such.
+- Conditions MUST be evaluable from events, per `FBP-02` §2.2. `time_elapsed` MUST use
+  lamport progress, so a quest does not complete early on a device with a wrong clock.
+- The award on completion MUST be an appended event referencing the satisfied conditions.
+  An award with no referenced conditions is a plain mint and MUST be recorded as one.
+- A quest MUST NOT require continuous connectivity to progress. Steps completed off-grid
+  MUST be signable locally and reconciled later.
+- A quest MUST NOT be retroactively voided. Where an issuer determines a quest was
+  completed in error, it appends a corrective event; the original stands as history.
+
+## §PP.6 The life path
+
+The life path is the holder's document read as a whole: an ordered projection of every
+entry, across every issuer.
+
+- The projection MUST be computed from ledger events. It MUST NOT depend on a
+  reconstruction held by any single issuer.
+- Ordering MUST be by lamport progress, per `FBP-00` §0.4 — not by issuer, not by wall
+  clock.
+- The holder MUST be able to grant a scoped view over a slice of the path — a period, an
+  issuer, a class of entry — using `FBP-01` scoped grants, and MUST be able to revoke it.
+- The holder MUST be able to prove path facts without disclosing the path: that they
+  completed a class of quest, that they hold an honor of a class, that they have been
+  active with an issuer class over a period.
+- An issuer MUST NOT be able to enumerate a holder's entries written by other issuers.
+
+## §PP.7 Off-grid operation
+
+The Passport is expected to be used where there is no network — a trail, a venue, a
+remote site.
+
+- Stamping, awarding and quest progress MUST work with the device offline: signed locally
+  and queued, per [Transport §T.1](/spec/transport/#t1-the-offline-first-requirement).
+- A holder-side and an issuer-side device MUST be able to exchange an entry **directly**,
+  peer to peer, with no infrastructure between them.
+- Entries MUST display as pending until reconciled, and MUST NOT display as final early.
+- Duplicate stamps from repeated offline exchanges MUST be idempotent at the ledger
+  layer, not deduplicated by the application.
+
+## §PP.8 Companion navigation
+
+A Plane 3 agent MAY navigate a Passport for its holder — suggest quests, explain
+progress, spend points.
+
+- Spending points MUST pass the spend gate
+  ([FBP-03 §3.5](/spec/fbp-03-stableflow/#35-the-spend-gate)).
+- An agent MUST NOT accept an honor on the holder's behalf where acceptance is an act of
+  consent, and MUST NOT satisfy any quest condition requiring the holder's attestation.
+- An agent MUST NOT read parts of the document outside its grant, and its reads SHOULD be
+  visible to the holder.
+
+## §PP.9 Conformance checklist
+
+- [ ] The profile introduces no primitive not already in `FBP-00` … `FBP-04`.
+- [ ] A protocol implementation with no knowledge of the Passport can run it.
+- [ ] Many issuers write into one holder's document; the document is not issuer-scoped.
+- [ ] The holder can export everything without asking any issuer.
+- [ ] Points do not redeem, do not convert across issuers, and have `decimals: 0`.
+- [ ] Honors cannot be transferred and carry no economic claim.
+- [ ] Every quest step is a ledger event; nothing lives only in an application database.
+- [ ] Stamping works with the device offline, peer to peer.
+- [ ] Path facts are provable without disclosing the path.

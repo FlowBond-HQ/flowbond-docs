@@ -1,0 +1,28 @@
+---
+title: Changelog
+description: The append-only record of every change to the FlowBond Protocol specification — date, author, rationale and compatibility impact for each entry.
+normative: non-normative
+sidebar:
+  order: 1
+---
+
+import ChangelogFeed from '../../components/ChangelogFeed.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Append-only">
+Entries on this page are **never edited and never deleted**. A mistaken entry is
+corrected by appending a later entry that references it by sequence number. The page is
+rendered directly from
+[`CHANGELOG.md`](https://github.com/FlowBond-HQ/flowbond-docs/blob/main/CHANGELOG.md) at
+build time — there is no second copy to drift.
+</Aside>
+
+Every normative change to a specification page requires an entry here, carrying the date,
+the author and the rationale. A change that shipped without an entry is a defect in the
+process, and is corrected by appending an entry that says so. See the
+[RFC process](/governance/rfc-process/#5--changelog-entry).
+
+Entries are shown newest first. The file itself stays in append order, so its git history
+reads forward.
+
+<ChangelogFeed />
