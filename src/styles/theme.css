@@ -1,0 +1,575 @@
+/* ==========================================================================
+   FlowBond Protocol — documentation theme
+   Dark by default. Every colour below is a token; nothing is hard-coded twice.
+   ========================================================================== */
+
+:root {
+  /* --- brand tokens (dark, canonical) ------------------------------------ */
+  --fb-bg: #14201e;
+  --fb-surface: #1b2a27;
+  --fb-surface-2: #223330;
+  --fb-ink: #ede6d6;
+  --fb-dim: #b7af9d;
+  --fb-gold: #d9a441;
+  --fb-jade: #6fbf9e;
+  --fb-violet: #9d8cd4;
+  --fb-clay: #d07b5a;
+  --fb-line: rgba(237, 230, 214, 0.13);
+  --fb-line-strong: rgba(237, 230, 214, 0.26);
+
+  --fb-font-display: 'Fraunces Variable', 'Fraunces', ui-serif, Georgia, serif;
+  --fb-font-body: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --fb-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --sl-font: var(--fb-font-body);
+  --sl-font-mono: var(--fb-font-mono);
+
+  --sl-content-width: 48rem;
+  --sl-nav-height: 3.75rem;
+}
+
+/* Starlight palette mapping — dark ---------------------------------------- */
+:root,
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #2c2415;
+  --sl-color-accent: var(--fb-gold);
+  --sl-color-accent-high: #ecca8e;
+
+  --sl-color-white: #fbf7ee;
+  --sl-color-gray-1: var(--fb-ink);
+  --sl-color-gray-2: #d3ccbc;
+  --sl-color-gray-3: var(--fb-dim);
+  --sl-color-gray-4: #7d8b85;
+  --sl-color-gray-5: #3a4b47;
+  --sl-color-gray-6: var(--fb-surface);
+  --sl-color-gray-7: #21322e;
+  --sl-color-black: var(--fb-bg);
+
+  --sl-color-bg: var(--fb-bg);
+  --sl-color-bg-nav: rgba(20, 32, 30, 0.86);
+  --sl-color-bg-sidebar: var(--fb-bg);
+  --sl-color-bg-inline-code: rgba(237, 230, 214, 0.07);
+  --sl-color-hairline: var(--fb-line);
+  --sl-color-hairline-light: var(--fb-line);
+  --sl-color-hairline-shade: var(--fb-line);
+
+  --sl-color-text: var(--fb-ink);
+  --sl-color-text-accent: var(--fb-gold);
+  --sl-color-text-invert: var(--fb-bg);
+
+  --sl-color-backdrop-overlay: rgba(20, 32, 30, 0.82);
+  color-scheme: dark;
+}
+
+/* Light theme — same identity, inverted ground ---------------------------- */
+:root[data-theme='light'] {
+  --fb-bg: #f6f2e7;
+  --fb-surface: #ffffff;
+  --fb-surface-2: #efeadb;
+  --fb-ink: #1a2422;
+  --fb-dim: #5c6764;
+  --fb-gold: #8a6111;
+  --fb-jade: #1f7256;
+  --fb-violet: #574398;
+  --fb-clay: #9c4a26;
+  --fb-line: rgba(26, 36, 34, 0.14);
+  --fb-line-strong: rgba(26, 36, 34, 0.3);
+
+  --sl-color-accent-low: #ece0c4;
+  --sl-color-accent: var(--fb-gold);
+  --sl-color-accent-high: #4a3407;
+
+  --sl-color-white: #101816;
+  --sl-color-gray-1: #1a2422;
+  --sl-color-gray-2: #38443f;
+  --sl-color-gray-3: #5c6764;
+  --sl-color-gray-4: #74807c;
+  --sl-color-gray-5: #c3bdae;
+  --sl-color-gray-6: #eee8d9;
+  --sl-color-gray-7: #f2ecdf;
+  --sl-color-black: #ffffff;
+
+  --sl-color-bg: var(--fb-bg);
+  --sl-color-bg-nav: rgba(246, 242, 231, 0.9);
+  --sl-color-bg-sidebar: var(--fb-bg);
+  --sl-color-bg-inline-code: rgba(26, 36, 34, 0.07);
+  --sl-color-hairline: var(--fb-line);
+  --sl-color-hairline-light: var(--fb-line);
+  --sl-color-hairline-shade: var(--fb-line);
+
+  --sl-color-text: var(--fb-ink);
+  --sl-color-text-accent: var(--fb-gold);
+  --sl-color-text-invert: #ffffff;
+  color-scheme: light;
+}
+
+/* --- typography ---------------------------------------------------------- */
+
+body {
+  background: var(--fb-bg);
+  font-feature-settings: 'ss01', 'cv05';
+  -webkit-font-smoothing: antialiased;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.site-title,
+h1,
+h2 {
+  font-family: var(--fb-font-display);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  font-variation-settings: 'SOFT' 0, 'WONK' 0, 'opsz' 40;
+}
+
+.sl-markdown-content h1 {
+  font-size: clamp(2rem, 1.4rem + 2.4vw, 2.9rem);
+  line-height: 1.1;
+}
+
+.sl-markdown-content h2 {
+  font-size: clamp(1.45rem, 1.2rem + 1vw, 1.8rem);
+  padding-top: 0.35em;
+  border-top: 1px solid var(--fb-line);
+  margin-top: 2.6em;
+}
+
+.sl-markdown-content h3 {
+  font-size: 1.2rem;
+  color: var(--fb-ink);
+}
+
+.sl-markdown-content h4 {
+  font-family: var(--fb-font-mono);
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fb-dim);
+  font-weight: 500;
+}
+
+.sl-markdown-content p,
+.sl-markdown-content li {
+  line-height: 1.7;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)) {
+  color: var(--fb-gold);
+  text-underline-offset: 0.22em;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--fb-gold) 45%, transparent);
+}
+
+/* --- normative keyword tokens -------------------------------------------- */
+
+.kw {
+  font-family: var(--fb-font-mono);
+  font-size: 0.86em;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 0.08em 0.42em;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.kw-must {
+  color: var(--fb-gold);
+  background: color-mix(in srgb, var(--fb-gold) 13%, transparent);
+  border-color: color-mix(in srgb, var(--fb-gold) 34%, transparent);
+}
+
+.kw-should {
+  color: var(--fb-jade);
+  background: color-mix(in srgb, var(--fb-jade) 13%, transparent);
+  border-color: color-mix(in srgb, var(--fb-jade) 32%, transparent);
+}
+
+.kw-should-not {
+  color: var(--fb-jade);
+  background: color-mix(in srgb, var(--fb-jade) 10%, transparent);
+  border-color: color-mix(in srgb, var(--fb-jade) 26%, transparent);
+  border-style: dashed;
+}
+
+.kw-never {
+  color: var(--fb-clay);
+  background: color-mix(in srgb, var(--fb-clay) 15%, transparent);
+  border-color: color-mix(in srgb, var(--fb-clay) 38%, transparent);
+}
+
+.kw-may {
+  color: var(--fb-dim);
+  background: color-mix(in srgb, var(--fb-dim) 11%, transparent);
+  border-color: color-mix(in srgb, var(--fb-dim) 26%, transparent);
+}
+
+/* --- version badge on spec pages ----------------------------------------- */
+
+.fb-page-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+  font-family: var(--fb-font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.fb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.24em 0.6em;
+  border: 1px solid var(--fb-line-strong);
+  border-radius: 999px;
+  color: var(--fb-dim);
+  background: var(--fb-surface);
+}
+
+.fb-badge[data-tone='version'] {
+  color: var(--fb-gold);
+  border-color: color-mix(in srgb, var(--fb-gold) 40%, transparent);
+}
+.fb-badge[data-tone='normative'] {
+  color: var(--fb-jade);
+  border-color: color-mix(in srgb, var(--fb-jade) 40%, transparent);
+}
+.fb-badge[data-tone='non-normative'] {
+  color: var(--fb-violet);
+  border-color: color-mix(in srgb, var(--fb-violet) 40%, transparent);
+}
+.fb-badge[data-tone='open'] {
+  color: var(--fb-clay);
+  border-color: color-mix(in srgb, var(--fb-clay) 40%, transparent);
+}
+
+/* --- tables -------------------------------------------------------------- */
+
+.sl-markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  display: block;
+  overflow-x: auto;
+}
+
+.sl-markdown-content th {
+  font-family: var(--fb-font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--fb-dim);
+  font-weight: 500;
+  text-align: left;
+  border-bottom: 1px solid var(--fb-line-strong);
+}
+
+.sl-markdown-content td,
+.sl-markdown-content th {
+  padding: 0.6rem 0.9rem 0.6rem 0;
+  vertical-align: top;
+  border-bottom: 1px solid var(--fb-line);
+}
+
+/* --- code ---------------------------------------------------------------- */
+
+.sl-markdown-content .expressive-code {
+  --ec-brdCol: var(--fb-line);
+  --ec-frm-edBg: var(--fb-surface);
+  --ec-frm-trmBg: var(--fb-surface);
+  font-size: 0.88rem;
+}
+
+.sl-markdown-content :not(pre) > code {
+  font-size: 0.88em;
+  border: 1px solid var(--fb-line);
+  border-radius: 4px;
+  padding: 0.12em 0.36em;
+}
+
+/* --- callouts (Starlight asides) ----------------------------------------- */
+
+.sl-markdown-content .starlight-aside {
+  border-inline-start-width: 2px;
+  border-radius: 0 6px 6px 0;
+  background: var(--fb-surface);
+}
+
+/* --- the plane stack ------------------------------------------------------ */
+
+.plane-stack {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 2rem 0;
+}
+
+.plane-stack .pl-band {
+  fill: var(--fb-surface);
+  stroke: var(--fb-line-strong);
+  stroke-width: 1;
+}
+.plane-stack .pl-num {
+  font-family: var(--fb-font-mono);
+  font-size: 13px;
+  fill: var(--fb-dim);
+}
+.plane-stack .pl-name {
+  font-family: var(--fb-font-display);
+  font-size: 19px;
+  fill: var(--fb-ink);
+}
+.plane-stack .pl-desc {
+  font-family: var(--fb-font-body);
+  font-size: 12.5px;
+  fill: var(--fb-dim);
+}
+.plane-stack .pl-tag {
+  font-family: var(--fb-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  fill: var(--fb-dim);
+}
+.plane-stack .pl-arrow {
+  stroke: var(--fb-line-strong);
+  stroke-width: 1;
+  fill: none;
+}
+
+/* --- landing page -------------------------------------------------------- */
+
+.fb-hero {
+  padding: 1rem 0 0;
+}
+
+.fb-hero .eyebrow {
+  font-family: var(--fb-font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fb-gold);
+  margin: 0 0 0.9rem;
+}
+
+.fb-hero h1 {
+  font-family: var(--fb-font-display);
+  font-size: clamp(2.2rem, 1.3rem + 3.6vw, 3.6rem);
+  line-height: 1.03;
+  letter-spacing: -0.025em;
+  margin: 0 0 1rem;
+  font-variation-settings: 'SOFT' 0, 'WONK' 1, 'opsz' 60;
+}
+
+.fb-hero .lede {
+  font-size: 1.12rem;
+  line-height: 1.65;
+  color: var(--fb-dim);
+  max-width: 42ch;
+  margin: 0 0 1.8rem;
+}
+
+.fb-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.fb-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.62em 1.15em;
+  border-radius: 6px;
+  font-family: var(--fb-font-mono);
+  font-size: 0.83rem;
+  letter-spacing: 0.05em;
+  text-decoration: none !important;
+  border: 1px solid var(--fb-line-strong);
+  color: var(--fb-ink) !important;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.fb-cta:hover {
+  border-color: var(--fb-gold);
+  background: color-mix(in srgb, var(--fb-gold) 10%, transparent);
+}
+
+.fb-cta[data-variant='primary'] {
+  background: var(--fb-gold);
+  border-color: var(--fb-gold);
+  color: #1a1206 !important;
+  font-weight: 500;
+}
+
+.fb-cta[data-variant='primary']:hover {
+  background: #e6b45c;
+  border-color: #e6b45c;
+}
+
+/* --- card grid ------------------------------------------------------------ */
+
+.fb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin: 1.6rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fb-card {
+  border: 1px solid var(--fb-line);
+  border-radius: 8px;
+  background: var(--fb-surface);
+  padding: 1.05rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.fb-card a {
+  text-decoration: none !important;
+  color: var(--fb-ink) !important;
+  font-family: var(--fb-font-display);
+  font-size: 1.05rem;
+}
+
+.fb-card a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.fb-card {
+  position: relative;
+  transition: border-color 0.15s ease;
+}
+
+.fb-card:hover {
+  border-color: var(--fb-line-strong);
+}
+
+.fb-card .k {
+  font-family: var(--fb-font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fb-gold);
+}
+
+.fb-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--fb-dim);
+}
+
+/* --- changelog ------------------------------------------------------------ */
+
+.fb-entry {
+  border: 1px solid var(--fb-line);
+  border-left: 2px solid var(--fb-gold);
+  border-radius: 0 8px 8px 0;
+  background: var(--fb-surface);
+  padding: 1.1rem 1.3rem;
+  margin: 1.1rem 0;
+}
+
+.fb-entry header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.fb-entry .seq {
+  font-family: var(--fb-font-mono);
+  font-size: 0.75rem;
+  color: var(--fb-bg);
+  background: var(--fb-gold);
+  padding: 0.15em 0.5em;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.fb-entry .ver {
+  font-family: var(--fb-font-display);
+  font-size: 1.15rem;
+  color: var(--fb-ink);
+}
+
+.fb-entry .meta {
+  font-family: var(--fb-font-mono);
+  font-size: 0.74rem;
+  color: var(--fb-dim);
+  letter-spacing: 0.04em;
+}
+
+.fb-entry :is(p, ul, li) {
+  font-size: 0.93rem;
+  line-height: 1.65;
+}
+
+.fb-entry > :last-child {
+  margin-bottom: 0;
+}
+
+/* --- footer -------------------------------------------------------------- */
+
+.fb-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.2rem;
+  align-items: center;
+  margin-top: 1.4rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--fb-line);
+  font-family: var(--fb-font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--fb-dim);
+}
+
+.fb-source a {
+  color: var(--fb-dim) !important;
+  text-decoration: none !important;
+  border-bottom: 1px solid var(--fb-line-strong);
+}
+
+.fb-source a:hover {
+  color: var(--fb-gold) !important;
+  border-color: var(--fb-gold);
+}
+
+/* --- misc ---------------------------------------------------------------- */
+
+.site-title {
+  font-family: var(--fb-font-display);
+  letter-spacing: -0.01em;
+}
+
+.sl-markdown-content dl dt {
+  font-family: var(--fb-font-mono);
+  font-size: 0.85rem;
+  color: var(--fb-gold);
+  margin-top: 1rem;
+}
+
+.sl-markdown-content dl dd {
+  margin: 0.2rem 0 0 1.1rem;
+  color: var(--fb-dim);
+  font-size: 0.94rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

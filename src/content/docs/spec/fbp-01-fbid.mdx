@@ -1,0 +1,300 @@
+---
+title: FBP-01 · FBID
+description: Portable identity — the identity object, verifiable claims, credential issuance and revocation, account linking, five auth rails, non-custodial recovery, and the zero-knowledge obligations that make identity provable without being legible.
+specVersion: v0.1-draft
+normative: normative
+status: draft
+fbp: FBP-01
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../components/Mermaid.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+An **FBID** is a person's identity in the protocol. It is held by the person, not by any
+application, and it is designed so that the useful facts about a person can be proven
+without the person handing over the facts themselves.
+
+## Invariants
+
+<Aside type="danger" title="Normative — FBP-01 invariants">
+1. **The subject owns the identity.** A consumer receives a scoped grant and NEVER ownership. Deleting a consumer MUST NOT delete an identity.
+2. **Recovery without custodial takeover.** Every FBID MUST have a recovery path, and no recovery path MAY give any single party unilateral control of the identity.
+3. **Additive, revocable linking.** Linking an account or credential MUST be additive and MUST be revocable by the subject alone.
+4. **Prove, don't reveal.** Where a claim can be proven as a predicate, the predicate is REQUIRED and the underlying value MUST NOT be transmitted.
+5. **No identity is a biometric.** Uniqueness MAY be proven; biometric material MUST NEVER leave the subject's device or be committed to the ledger, even in hashed form.
+6. **Equal rails.** No authentication rail may be the only one offered. See §1.5.
+</Aside>
+
+## §1.1 The identity object
+
+```json title="FBID — normative schema"
+{
+  "v": 1,
+  "fbid": "fbid:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH",
+  "created": "e_01J8Y…",
+  "keys": [
+    {
+      "kid": "dev_7c1",
+      "alg": "ed25519",
+      "public": "z6Mk…",
+      "role": "device",
+      "label_commitment": "0x4c2e…",
+      "created": "e_01J8Y…",
+      "revoked": null
+    },
+    {
+      "kid": "rec_2a9",
+      "alg": "ed25519",
+      "public": "z6Mk…",
+      "role": "recovery-share",
+      "threshold_group": "grp_1",
+      "created": "e_01J8Y…",
+      "revoked": null
+    }
+  ],
+  "claims": ["c_01J8Y…", "c_01J8Z…"],
+  "links": ["ln_01J8Z…"],
+  "grants": ["gr_01J90…"],
+  "recovery": {
+    "policy": "threshold",
+    "threshold": 2,
+    "of": 3,
+    "delay_events": 720,
+    "guardian_commitments": ["0x9a1…", "0x7f4…", "0x33b…"]
+  },
+  "status": "active"
+}
+```
+
+Normative rules:
+
+- `fbid` MUST be derived from a public key the subject controls. It MUST NOT encode a
+  name, an email address, a phone number, a country, or a date.
+- The identity object is a **projection of a stream**, not a stored record. Its
+  authoritative form is the ordered set of `fbp01.*` events in the identity's stream.
+- `label_commitment` exists so a person can name their own devices without the network
+  learning the names. Cleartext labels MUST NOT appear on the ledger.
+- `guardian_commitments` commit to recovery guardians without identifying them. The
+  network MUST NOT be able to enumerate a person's guardians.
+- `status` is one of `active`, `suspended`, `retired`. A retired FBID MUST NOT be
+  reactivated; its history remains verifiable.
+
+### Event types
+
+| Type | Meaning |
+| --- | --- |
+| `fbp01.identity.created` | Genesis event of an identity stream. |
+| `fbp01.key.added` / `fbp01.key.revoked` | Device or recovery key lifecycle. |
+| `fbp01.claim.issued` / `fbp01.claim.revoked` | Credential lifecycle, by an issuer. |
+| `fbp01.link.added` / `fbp01.link.removed` | Account linking. |
+| `fbp01.grant.issued` / `fbp01.grant.revoked` | Scoped grant to a consumer. |
+| `fbp01.recovery.initiated` / `.approved` / `.completed` / `.cancelled` | Recovery ceremony. |
+| `fbp01.identity.retired` | Terminal event. |
+
+## §1.2 Verifiable claims
+
+A **claim** is an attestation by an issuer about a subject. Claims are the unit of
+"what a person can prove".
+
+```json title="Claim"
+{
+  "id": "c_01J8Y…",
+  "subject": "fbid:z6Mk…",
+  "issuer": "fbid:z6Mk…",
+  "schema": "https://schemas.flowbond.tech/claim/age-band/1",
+  "commitment": { "alg": "sha256", "digest": "…", "salt_commitment": "0x…" },
+  "predicates": ["over_18", "over_21"],
+  "valid_from": "2026-08-14T00:00:00Z",
+  "valid_until": "2031-08-14T00:00:00Z",
+  "revocation": { "accumulator": "acc_1", "witness_hint": "0x…" },
+  "sig": { "alg": "ed25519", "value": "…" }
+}
+```
+
+- A claim MUST commit to its underlying value and MUST NOT publish it.
+- `predicates` enumerates the statements the subject can prove from this claim without
+  disclosure. An issuer that issues a claim supporting no predicate has issued a
+  document, not a credential.
+- Issuance MUST be an event (`fbp01.claim.issued`) in the **issuer's** stream,
+  referencing the subject's stream. Both sides are therefore auditable.
+- A verifier MUST check: issuer signature, validity window, revocation status, and the
+  proof of the predicate it actually needs. A verifier that requests more than the
+  predicate it needs is NOT conformant with §1.4.
+
+### Revocation
+
+- Revocation MUST be checkable without contacting the issuer at verification time, and
+  MUST NOT require the verifier to learn which claim is being checked. A cryptographic
+  accumulator or equivalent is REQUIRED; a public list of revoked claim identifiers is
+  NOT RECOMMENDED, because the list itself is a correlation surface.
+- Revocation MUST be an append event. A "revoked" claim MUST remain in history — a claim
+  that was valid last year was in fact valid last year.
+- The subject MUST be able to see every claim issued about them, and MUST be notified of
+  revocation.
+
+## §1.3 Account linking
+
+Linking connects an external account (an email address, a phone number, a wallet, a
+social account, another FBID) to an FBID.
+
+- Linking MUST be **additive**: adding a link MUST NOT invalidate an existing one, and
+  MUST NOT change the `fbid`.
+- Linking MUST be **revocable by the subject alone**. No issuer, consumer or agent may
+  block or delay a revocation.
+- A link MUST store a commitment to the external identifier, not the identifier. A
+  consumer that needs to reach the person uses a scoped grant, not the raw address.
+- Revoking a link MUST revoke every grant that depended on it, in the same event batch.
+  A dangling grant after an unlink is a conformance failure.
+- Two FBIDs MAY link to each other (a **peer link**). A peer link MUST NOT confer any
+  authority by itself.
+
+## §1.4 Scoped grants — consumers never own identity
+
+<Aside type="caution" title="The consumer boundary, restated for identity">
+A consumer's relationship to an identity is a **grant**: a named, expiring, revocable
+permission to receive specific proofs. Consumers MUST NOT own, mirror or re-issue an
+identity.
+</Aside>
+
+```json title="Grant"
+{
+  "id": "gr_01J90…",
+  "subject": "fbid:z6Mk…",
+  "audience_commitment": "0x2b7…",
+  "scope": ["proof:over_18", "notify:transactional", "read:display_name"],
+  "purpose_commitment": "0x91c…",
+  "expires": { "lamport": 8800 },
+  "revocable": true,
+  "delegable": false
+}
+```
+
+Normative rules:
+
+- Every grant MUST carry an explicit `scope`, an expiry, and a purpose commitment. An
+  unbounded or unexpiring grant MUST NOT be issued.
+- `revocable` MUST be `true`. The field exists to make the guarantee legible, not to
+  make it configurable — a grant with `revocable: false` MUST be rejected.
+- Revocation MUST take effect without the consumer's cooperation, and MUST be observable
+  by the subject.
+- `delegable: true` permits onward delegation to a named sub-audience, and the delegate
+  MUST inherit an expiry no later than the parent's. Unbounded re-delegation MUST NOT be
+  possible.
+- A consumer MUST NOT retain derived personal data after a grant expires, beyond what a
+  legal obligation requires, and MUST be able to state which obligation.
+
+## §1.5 The five authentication rails
+
+An implementation MUST offer authentication over at least the following rails, and MUST
+present **magic link and one-time code with equal prominence**:
+
+| Rail | Notes |
+| --- | --- |
+| 1 · Magic link | Emailed or messaged link. MUST be single-use and short-lived. |
+| 2 · One-time code | 8-digit code entered manually. MUST be offered wherever a magic link is offered, with equal visual weight. |
+| 3 · Passkey / WebAuthn | Device-bound. RECOMMENDED as the default where available. |
+| 4 · Device key | An already-enrolled device signs a challenge locally. MUST work with no network beyond the challenge exchange. |
+| 5 · Recovery ceremony | The threshold path of §1.6. Not an everyday rail; MUST always be reachable. |
+
+<Aside type="danger" title="No dead ends">
+Every authentication surface MUST offer at least two rails, one of which MUST be the
+one-time code. Every failure state MUST offer a way forward — an error screen with no
+next action is a conformance failure, not a UX flaw.
+</Aside>
+
+**Rationale (non-normative).** Magic links fail in ordinary, unavoidable ways: corporate
+mail scanners consume the single use, in-app browsers break the session, forwarding
+breaks the binding, and a delayed message arrives after expiry. A manually entered code
+crosses all four gates because the human carries it. Offering only a link is offering a
+door that is sometimes locked from the outside.
+
+## §1.6 Recovery without custodial takeover
+
+<Aside type="danger" title="Normative">
+Recovery MUST be possible, and MUST NOT be achievable by any single party other than the
+subject.
+</Aside>
+
+The REQUIRED shape:
+
+1. **Threshold guardians.** Recovery authority is split `t`-of-`n` (`t ≥ 2`, `n ≥ 3`)
+   across guardians chosen by the subject. Guardians MAY be people, devices, or
+   services; at least one guardian MUST NOT be a service operated by the same party as
+   any other guardian.
+2. **A commitment, not a list.** The ledger holds `guardian_commitments`. The network
+   MUST NOT learn who the guardians are.
+3. **A mandatory delay.** `delay_events` specifies a minimum interval, measured in
+   ledger progress, between `recovery.initiated` and `recovery.completed`. The delay
+   MUST NOT be zero and MUST NOT be waivable by the guardians.
+4. **Subject veto.** During the delay, any live device key of the subject MUST be able to
+   cancel the recovery with a single event. This is the anti-coercion control: it turns
+   a stolen quorum into a survivable attack.
+5. **Loud by construction.** Initiation MUST be broadcast to every live device and every
+   link the subject holds. A silent recovery MUST NOT be possible.
+6. **No provider path.** An implementation MUST NOT offer an out-of-band administrative
+   recovery — a support agent who can restore an account is a custodian by another name,
+   and MUST NOT exist.
+
+<Mermaid title="The recovery ceremony: quorum, mandatory delay, and the subject's veto.">
+sequenceDiagram
+  participant S as Subject (new device)
+  participant L as Ledger
+  participant G as Guardians (t of n)
+  participant O as Subject's old devices
+  S->>L: fbp01.recovery.initiated
+  L-->>O: broadcast to every live key + link
+  L-->>G: request approvals
+  G->>L: fbp01.recovery.approved (×t)
+  Note over L: delay_events MUST elapse<br/>and MUST NOT be waivable
+  alt Subject still holds a device
+    O->>L: fbp01.recovery.cancelled
+    Note over L: recovery dies · attack survived
+  else Delay elapses with no veto
+    S->>L: fbp01.recovery.completed
+    Note over L: new device key added<br/>old keys revoked forward-only
+  end
+</Mermaid>
+
+## §1.7 Zero-knowledge obligations
+
+The following MUST be provable and the underlying values MUST NOT be disclosed to
+satisfy them:
+
+| Statement | Provable without |
+| --- | --- |
+| Subject is over 18 (or any age threshold) | Date of birth, age, or any date-derived value |
+| Subject is resident in a class of jurisdictions | Address, city, postcode, or coordinates |
+| Subject is a unique human within a scope | Any biometric, template, or biometric-derived hash |
+| Subject holds a claim issued by an accepted issuer | Which issuer, where the issuer set permits it |
+| Subject's claim is not revoked | Which claim is being checked |
+| Subject is the same person as in a prior session | A persistent identifier shared across verifiers |
+
+Additional normative rules:
+
+- **Unlinkability across verifiers.** Two verifiers MUST NOT be able to determine that
+  they are dealing with the same subject by comparing what they received. Presentations
+  MUST therefore be per-verifier and MUST NOT reuse a nullifier across scopes.
+- **Scoped nullifiers.** One-per-human uniqueness MUST use a nullifier derived from
+  `(identity secret, scope)`. It MUST be constant within a scope and MUST NOT be
+  correlatable across scopes.
+- **Biometric material** MUST NEVER be transmitted, stored server-side, or committed to
+  the ledger — including as a hash or template. Where a biometric participates, it MUST
+  do so only as a local unlock on the subject's device.
+- **Selective disclosure over open data.** Where a regulator or counterparty requires
+  visibility, it MUST be granted through a scoped view key issued by the subject or by a
+  lawful order served on the subject. Standing bulk access MUST NOT be provisioned.
+
+## §1.8 Conformance checklist
+
+- [ ] Identity survives deletion of every consumer that ever held a grant.
+- [ ] Magic link and 8-digit code appear with equal prominence on every auth surface.
+- [ ] No error state exists without a forward path.
+- [ ] Recovery requires a quorum, enforces a non-waivable delay, and can be vetoed by
+      the subject.
+- [ ] No administrative override path exists.
+- [ ] Unlinking revokes dependent grants atomically.
+- [ ] `over_18` verifies with no date of birth anywhere in the exchange.
+- [ ] The same subject presenting to two verifiers is not correlatable by them.
+- [ ] No biometric value or derivative appears in any transmitted or stored artefact.

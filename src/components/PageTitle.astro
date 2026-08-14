@@ -1,0 +1,48 @@
+---
+/**
+ * Overrides Starlight's PageTitle to stamp every page with its normative
+ * status and the spec version it belongs to. Frontmatter-driven — a page
+ * without the fields renders exactly like stock Starlight.
+ */
+const { entry, siteTitle } = Astro.locals.starlightRoute;
+const data = entry.data as typeof entry.data & {
+  specVersion?: string;
+  normative?: 'normative' | 'non-normative' | 'informative';
+  status?: 'draft' | 'review' | 'stable' | 'open';
+  fbp?: string;
+};
+
+const { specVersion, normative, status, fbp } = data;
+const hasMeta = specVersion || normative || status || fbp;
+
+const toneFor = (n?: string) =>
+  n === 'non-normative' || n === 'informative' ? 'non-normative' : 'normative';
+---
+
+{
+  hasMeta && (
+    <div class="fb-page-meta not-content" aria-label="Document status">
+      {fbp && <span class="fb-badge">{fbp}</span>}
+      {specVersion && (
+        <span class="fb-badge" data-tone="version">
+          <span aria-hidden="true">◆</span>
+          <span class="sr-only">Spec version&nbsp;</span>
+          {specVersion}
+        </span>
+      )}
+      {normative && (
+        <span class="fb-badge" data-tone={toneFor(normative)}>
+          {normative}
+        </span>
+      )}
+      {status && (
+        <span class="fb-badge" data-tone={status === 'open' ? 'open' : undefined}>
+          {status === 'open' ? 'open question' : status}
+        </span>
+      )}
+    </div>
+  )
+}
+
+<h1 id="_top">{entry.data.title}</h1>
+<span class="sr-only">{siteTitle}</span>

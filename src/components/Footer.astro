@@ -1,0 +1,23 @@
+---
+/**
+ * Extends Starlight's footer with the audit affordances the spec requires:
+ * every page links to its own source file and its own commit history.
+ */
+import Default from '@astrojs/starlight/components/Footer.astro';
+import { REPO } from '../consts';
+
+const { entry } = Astro.locals.starlightRoute;
+const filePath = entry.filePath ?? `src/content/docs/${entry.id}.md`;
+const source = `${REPO}/blob/main/${filePath}`;
+const history = `${REPO}/commits/main/${filePath}`;
+---
+
+<Default><slot /></Default>
+
+<div class="fb-source not-content">
+  <span>Audit this page</span>
+  <a href={source}>View source</a>
+  <a href={history}>History</a>
+  <a href={`${REPO}/blob/main/CHANGELOG.md`}>CHANGELOG</a>
+  <a href="/audit/">How to verify</a>
+</div>

@@ -1,0 +1,221 @@
+---
+title: Privacy Core · Plane 1
+description: The cross-cutting zero-knowledge obligations — what public state may contain, the required proof statements per primitive, selective disclosure through view keys, proof-system profiles, and the metadata rules that keep proofs from leaking what they hide.
+specVersion: v0.1-draft
+normative: normative
+status: draft
+sidebar:
+  order: 8
+---
+
+import PlaneStack from '../../../components/PlaneStack.astro';
+import Mermaid from '../../../components/Mermaid.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<PlaneStack active={1} compact />
+
+This section is normative across every primitive. Where it conflicts with a primitive's
+convenience, it wins.
+
+## §P.1 The core invariant
+
+<Aside type="danger" title="Normative">
+Every primitive MUST prove without revealing.
+
+Public protocol state consists of **commitments and proofs**. Contents are NEVER public
+protocol state.
+</Aside>
+
+Restated as a test an implementation can be held to: take a full copy of everything the
+protocol makes publicly available, plus unlimited compute, and no personal fact, amount,
+term, balance, relationship or corpus may be recoverable from it.
+
+## §P.2 What public state MAY contain
+
+Exhaustively — anything not on this list MUST NOT be public protocol state:
+
+1. Event envelopes: `id`, `stream`, `type`, `causal`, `ts.lamport`, `author`, `sig`.
+2. Payload commitments and salt commitments.
+3. Proofs, and the identifier of the statement each proof discharges.
+4. Aggregate integrity artefacts: supply totals, accrual/settlement reconciliations,
+   revocation accumulators.
+5. Protocol version and profile identifiers.
+
+Note that `type` is public. Event types are therefore a deliberate disclosure surface,
+and MUST be coarse enough that the type alone reveals nothing sensitive. A type such as
+`fbp01.claim.issued` is acceptable; a type encoding *which* claim would not be.
+
+`ts.author` — the author's wall clock — is in the envelope but MUST be treated as
+sensitive metadata; see §P.6.
+
+## §P.3 Required proof statements
+
+The following statements MUST be provable in a conformant implementation. Each is stated
+as *what is proven* and *what MUST remain unlearnable to the verifier*.
+
+### FBP-00 · Ledger
+
+| Statement | Verifier MUST NOT learn |
+| --- | --- |
+| This event's payload matches its commitment | The payload |
+| This stream's history is intact and unbroken | The contents of any event |
+| This event was signed by a key valid at its lamport point | Which other events that key signed |
+
+### FBP-01 · FBID
+
+| Statement | Verifier MUST NOT learn |
+| --- | --- |
+| Subject is over an age threshold | Date of birth, age, or any date-derived value |
+| Subject is resident in a jurisdiction class | Address, city, postcode, coordinates |
+| Subject is a unique human within a scope | Any biometric or biometric-derived value; identity in another scope |
+| Subject holds a claim from an accepted issuer set | Which issuer, where the set permits ambiguity |
+| The claim presented is not revoked | Which claim was checked |
+
+### FBP-02 · FlowShare
+
+| Statement | Verifier MUST NOT learn |
+| --- | --- |
+| The split sums to the whole | The individual shares |
+| The allocation matches the split version in force | The basis amount |
+| All release conditions were satisfied before settlement | The content of the conditions |
+| Aggregate accrued equals aggregate settled for a period | Any individual settlement |
+
+### FBP-03 · StableFlow
+
+| Statement | Verifier MUST NOT learn |
+| --- | --- |
+| Supply reconciles: outstanding = minted − burned | Any individual balance |
+| The spender held sufficient balance | The balance or the amount |
+| The spend was within its gate's limits | The gate's limits |
+| The credit belongs to this instance | The holder |
+
+### FBP-04 · LifeKey
+
+| Statement | Verifier MUST NOT learn |
+| --- | --- |
+| A named condition is met | The condition's terms |
+| A valid quorum signed | Which signatories signed |
+| The holder holds a binding of a given kind | The trust, corpus, or other holders |
+| A distribution was permitted by the seal | The amount or the corpus |
+
+## §P.4 Selective disclosure
+
+<Aside type="danger" title="Normative">
+Compliance, audit and counterparty visibility MUST be achieved through selective
+disclosure controlled by the subject. Open data MUST NEVER be used to satisfy a
+disclosure requirement, and a standing back channel that bypasses the subject MUST NOT
+exist.
+</Aside>
+
+Two mechanisms are defined:
+
+**View keys.** A key that decrypts a bounded slice of a subject's history.
+
+- A view key MUST be scoped to: a named audience, a set of streams or event types, a
+  time or lamport range, and a purpose. An unscoped view key MUST NOT be issuable.
+- Issuance MUST be an appended event, so the subject and any auditor can enumerate every
+  disclosure that has ever been made.
+- A view key MUST be revocable, and revocation MUST be an appended event. Revocation
+  cannot un-read what was read — which is exactly why the issuance record matters.
+- A view key MUST NOT be re-delegable unless issued as such, and a delegate's scope MUST
+  be a subset of the parent's.
+
+**Scoped credentials.** A credential asserting a conclusion, issued by the subject to a
+verifier, provable without the underlying data. Used where the verifier needs a fact
+rather than a window.
+
+<Mermaid title="Selective disclosure: the verifier receives a proof, and every disclosure is itself recorded.">
+sequenceDiagram
+  participant V as Verifier / Regulator
+  participant S as Subject
+  participant L as Ledger
+  V->>S: request: prove statement X for purpose P
+  S->>S: evaluate scope — minimum sufficient disclosure
+  alt A predicate suffices
+    S->>V: zero-knowledge proof of X
+    Note over V: learns X is true<br/>learns nothing else
+  else A window is genuinely required
+    S->>L: fbp01.viewkey.issued (audience, scope, range, purpose)
+    S->>V: scoped view key
+    Note over L: the disclosure itself is<br/>permanently auditable
+  end
+  V->>L: verify against public commitments
+</Mermaid>
+
+### Lawful process
+
+An implementation MUST NOT provision standing bulk access for any party, including
+itself. Where a lawful order is served, the conformant response is a scoped view key
+issued for the order's actual scope, recorded as an event. An implementation that *can*
+comply with a bulk order has already failed this section, regardless of whether it ever
+receives one.
+
+## §P.5 Proof-system profiles
+
+<Aside type="tip" title="What is fixed and what is free">
+This specification fixes **what MUST be provable** and **what MUST NOT be learnable**. It
+does not fix the proving system. The proving system is an implementation profile.
+</Aside>
+
+- A profile MUST be named in the `proof.profile` field of every event carrying a proof,
+  using a stable identifier (e.g. `fbp1.groth16.bn254`, `fbp1.plonk.bls12-381`,
+  `fbp1.stark.f2p64`).
+- A profile MUST document: the proving system, the curve or field, the circuit
+  identifiers with their hashes, whether a trusted setup exists, and how that setup's
+  transcript can be verified.
+- An implementation MUST be able to **verify** every profile it accepts and MUST reject
+  proofs in profiles it does not recognise. Recognising an unknown profile as valid is a
+  critical conformance failure.
+- Profiles MAY be added by `MINOR` version. Removing a profile — deprecating a proving
+  system — is `MAJOR`, because it breaks verification of existing history.
+- Where a trusted setup exists, its ceremony transcript MUST be published and MUST be
+  referenced from the profile document.
+- Post-quantum: implementations SHOULD prefer transparent setups where the performance
+  budget allows, on the reasoning that commitments made today must remain
+  non-openable for decades.
+
+## §P.6 Metadata is data
+
+Proofs hide contents. They do not hide that a proof was made, when, by whom, or how
+often. The following are normative:
+
+- **Timing.** `ts.author` MUST NOT be used to correlate a subject across streams.
+  Implementations SHOULD round or omit author timestamps where the primitive does not
+  need them, and MUST NOT reject an event for having a coarse one.
+- **Volume.** An implementation SHOULD pad or batch where event frequency alone would
+  reveal a pattern (a salary schedule, a treatment schedule, a shift roster).
+- **Graph shape.** `causal` links form a graph, and graph shape is identifying.
+  Implementations MUST NOT add causal links beyond those semantically required.
+- **Network layer.** A verifier MUST NOT be able to correlate a subject by transport
+  metadata. Where an internet path is used, implementations SHOULD offer a
+  connection-level privacy option; the mesh path of Plane 0 SHOULD NOT expose a stable
+  network identity for a subject.
+- **Nullifiers.** MUST be scope-derived, per §FBP-01 §1.7. A global nullifier is a
+  universal identifier and MUST NOT be used.
+
+## §P.7 Degradation and honesty
+
+<Aside type="danger" title="Normative">
+An implementation that cannot yet produce a REQUIRED proof MUST NOT substitute operator
+trust. It MUST either withhold the feature, or publish the gap as an explicit,
+documented non-conformance naming the statement it cannot prove.
+</Aside>
+
+- A published gap MUST name: the statement, the primitive, the reason, and the intended
+  resolution. It MUST appear in the implementation's own conformance claim.
+- "We do not look at this data" is not a substitute for "this data is not readable", and
+  MUST NOT be presented as conformance.
+- A feature that requires cleartext where the spec requires a proof MUST be labelled as
+  outside the protocol in any user-facing description.
+
+## §P.8 Conformance checklist
+
+- [ ] A full copy of public state yields no personal fact, amount, term, balance or
+      relationship.
+- [ ] Every REQUIRED statement in §P.3 has a working proof, or a published gap.
+- [ ] No view key can be issued without audience, scope, range and purpose.
+- [ ] Every view key issuance and revocation is an appended event.
+- [ ] No bulk-access path exists for any party, including the implementer.
+- [ ] Unknown proof profiles are rejected, not accepted.
+- [ ] Nullifiers do not correlate across scopes.
+- [ ] Causal links carry no relationships beyond the semantically required ones.

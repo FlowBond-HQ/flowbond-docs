@@ -1,0 +1,106 @@
+---
+title: The protocol beneath the worlds
+description: The canonical, versioned specification of the FlowBond Protocol — a Layer 0 of identity, value and intelligence that works offline and proves without revealing.
+template: splash
+tableOfContents: false
+editUrl: false
+hero:
+  tagline: A Layer 0 of identity, value and intelligence. Four primitives over one append-only ledger, private by construction, and built to keep working when the network does not.
+  actions:
+    - text: Read the specification
+      link: /spec/
+      icon: right-arrow
+      variant: primary
+    - text: How this document is governed
+      link: /governance/
+      variant: minimal
+---
+
+import PlaneStack from '../../components/PlaneStack.astro';
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<PlaneStack />
+
+## What this document is
+
+This is the base document of the **FlowBond Foundation**: the normative specification
+of the FlowBond Protocol. It defines a small set of primitives — identity, split,
+credit, trust — over a single append-only ledger, and the obligations any
+implementation MUST meet to call itself conformant.
+
+It is versioned, auditable and changed only through a public process. The git history
+of this repository **is** the audit log; the [changelog](/changelog/) is append-only;
+every release is tagged. Nothing here changes silently.
+
+Current version: **v0.1-draft**. Draft means the primitives are stable enough to
+implement against and the wording is still open to challenge. See
+[versioning policy](/governance/versioning/).
+
+## The four primitives
+
+<CardGrid>
+  <Card title="FBP-01 · FBID">
+    Portable identity. Verifiable claims, revocable links, five auth rails, recovery
+    that never hands custody to anyone. Consumers get scoped grants — never ownership.
+    [Read →](/spec/fbp-01-fbid/)
+  </Card>
+  <Card title="FBP-02 · FlowShare">
+    Splits and conditional payout as ledger events. Zero custody, ever. Splits MUST sum
+    to the whole. Payment rails are adapters and stay out of the spec.
+    [Read →](/spec/fbp-02-flowshare/)
+  </Card>
+  <Card title="FBP-03 · StableFlow">
+    Closed-loop credits, one economy instance per consumer, with a spend gate agents
+    must pass through. Credits NEVER redeem for cash — and no consumer can waive that.
+    [Read →](/spec/fbp-03-stableflow/)
+  </Card>
+  <Card title="FBP-04 · LifeKey">
+    Programmable trust. Parties, signatories, thresholds, conditions, soulbound
+    bindings, and a counselor who advises and is NEVER a signatory.
+    [Read →](/spec/fbp-04-lifekey/)
+  </Card>
+</CardGrid>
+
+All four are written over [FBP-00 · the ledger](/spec/fbp-00-ledger/), which has one
+rule that shapes everything else: events are appended, never updated and never deleted.
+
+## Three commitments that are not negotiable
+
+<CardGrid>
+  <Card title="Prove without revealing">
+    Every primitive states what MUST be provable and what MUST NOT be exposed. Public
+    state is commitments and proofs. Compliance happens through selective disclosure,
+    never through open data. [Privacy Core →](/spec/privacy-core/)
+  </Card>
+  <Card title="Work without the internet">
+    Events sign locally and queue on a mesh. Reconciliation is deterministic when a
+    path appears. Connectivity is a convenience, not a precondition.
+    [Transport →](/spec/transport/)
+  </Card>
+  <Card title="Know nothing of its consumers">
+    The protocol does not name the products built on it, and MUST NOT special-case
+    them. Products appear only in the non-normative [ecosystem](/ecosystem/) index.
+  </Card>
+</CardGrid>
+
+## Where to start
+
+<CardGrid>
+  <Card title="If you are implementing">
+    Start with [how to read this spec](/spec/), then [FBP-00](/spec/fbp-00-ledger/) —
+    every other primitive assumes its event model.
+  </Card>
+  <Card title="If you are reviewing">
+    Read [§1 Architecture](/spec/architecture/) for the shape of the system, then
+    [Privacy Core](/spec/privacy-core/) for the constraint that explains most design
+    choices.
+  </Card>
+  <Card title="If you are auditing">
+    Go to [/audit](/audit/): how to pin a version to a git tag, verify it, and read the
+    machine-readable index at [`/spec.json`](/spec.json).
+  </Card>
+  <Card title="If you want to change something">
+    The [RFC process](/governance/rfc-process/) is the only door. Issue → draft PR →
+    public review → editor merge → changelog entry.
+  </Card>
+</CardGrid>

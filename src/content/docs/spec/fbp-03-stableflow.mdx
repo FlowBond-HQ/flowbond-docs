@@ -1,0 +1,218 @@
+---
+title: FBP-03 · StableFlow
+description: Closed-loop credits — mint, burn and transfer scopes, per-consumer economy instances, the agent spend gate, and the constitutional non-redeemability invariant that cannot be waived.
+specVersion: v0.1-draft
+normative: normative
+status: draft
+fbp: FBP-03
+sidebar:
+  order: 6
+---
+
+import Mermaid from '../../../components/Mermaid.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+`FBP-03` defines a **closed-loop credit**: a unit that exists inside one economy, is
+spent inside that economy, and leaves it only by being burned. It is the primitive that
+lets an application meter access, reward participation and let an agent spend on a
+person's behalf — without creating a financial instrument.
+
+## Invariants
+
+<Aside type="danger" title="Normative — FBP-03 invariants">
+1. **Non-redeemability (constitutional).** Credits NEVER redeem for cash, for a cash equivalent, or for a claim on any party's assets. This invariant MUST NOT be waived, disabled, configured away, or contracted around by any consumer, in any deployment, at any time.
+2. **Closed loop.** A credit MUST NOT be transferable out of the economy instance that minted it. There is no bridge, no exchange, and no secondary market path defined or permitted by this primitive.
+3. **Supply integrity is public.** Total minted, total burned and total outstanding MUST be publicly verifiable, while individual balances stay private.
+4. **Every mint is authorised and attributed.** A mint MUST reference the authority that permitted it and MUST be signed. Unattributed issuance MUST NOT be possible.
+5. **Agents spend only through the gate.** Any spend initiated by a Plane 3 agent MUST pass a spend gate with a limit, a scope and an expiry. See §3.5.
+</Aside>
+
+### Why invariant 1 is written as NEVER
+
+**Rationale (non-normative).** A closed-loop credit that can be exchanged for cash is a
+stored-value instrument, and in most jurisdictions that is a regulated activity with
+licensing, safeguarding and reporting obligations attached. More importantly, the moment
+redemption exists, the credit acquires a market price, and every design decision in the
+economy becomes a financial decision.
+
+Making redemption *unavailable by policy* would leave it one product decision away.
+Making it a constitutional invariant means a consumer cannot introduce it without
+leaving the protocol — which is exactly the intent. A conformant implementation MUST NOT
+provide a configuration flag whose effect is redemption, and MUST NOT accept a consumer
+agreement that purports to grant one.
+
+## §3.1 Economy instances
+
+An **economy instance** is a namespace with its own supply, its own rules and its own
+stream.
+
+```json title="Economy instance"
+{
+  "v": 1,
+  "id": "ec_01J92…",
+  "stream": "s_bb70…",
+  "unit": { "name_commitment": "0x3d2…", "decimals": 0 },
+  "policy": {
+    "mint_authorities": ["fbid:z6Mk…X"],
+    "mint_authority_threshold": 1,
+    "expiry_events": null,
+    "transferable_between_holders": false,
+    "max_supply": null
+  },
+  "redeemable": false,
+  "created": "e_01J92…"
+}
+```
+
+- Each consumer operates its **own** economy instance. Credits MUST NOT be fungible
+  across instances, and an implementation MUST NOT provide a conversion path between
+  them.
+- `decimals` SHOULD be `0`. Credits are countable things; fractional credits invite
+  pricing behaviour that belongs to money.
+- `redeemable` MUST be `false`. The field exists so the invariant is legible in the data,
+  not so it can be changed: an economy instance with `redeemable: true` MUST be rejected
+  at creation, and an event attempting to set it MUST be rejected.
+- `transferable_between_holders` MAY be `true`, permitting peer transfer **within** the
+  instance. Even when `true`, §3.2 constraints apply.
+- `max_supply: null` means unbounded issuance by the authorities. Where a cap exists, a
+  mint that would exceed it MUST be rejected.
+
+## §3.2 Scopes: mint, burn, transfer
+
+| Operation | Event | Who MAY perform it |
+| --- | --- | --- |
+| Mint | `fbp03.credit.minted` | A `mint_authority` of the instance, at or above `mint_authority_threshold` |
+| Burn | `fbp03.credit.burned` | The holder, or an authority where the instance policy permits expiry |
+| Transfer | `fbp03.credit.transferred` | The holder, only within the instance, only if `transferable_between_holders` |
+| Spend | `fbp03.credit.spent` | The holder or a gated agent; burns the credit against a named consumption |
+
+Normative rules:
+
+- **Mint.** MUST name its authority and MUST commit to a reason. Minting MUST NOT be
+  possible by any party outside `mint_authorities`. Mint events MUST be included in the
+  public supply aggregate.
+- **Burn.** MUST be irreversible. A burned credit MUST NOT be re-minted as the same
+  credit; new issuance is a new mint, visible in the supply aggregate.
+- **Transfer.** MUST NOT cross instance boundaries. An implementation MUST reject a
+  transfer whose destination is outside the instance, and MUST NOT expose an API surface
+  that could express one.
+- **Spend.** MUST reference what was consumed, by commitment. A spend with no
+  counterpart consumption is a burn and MUST be recorded as one.
+- No operation MAY create a negative balance. A spend exceeding balance MUST be rejected
+  before signing, and a node that observes one after merge MUST mark the stream in
+  conflict and refuse further spends until an explicit resolution event.
+
+### Expiry
+
+Where `policy.expiry_events` is set, credits expire after that much ledger progress from
+mint.
+
+- Expiry MUST be a burn event, attributed to the instance policy, not a silent
+  disappearance.
+- The holder MUST be notified before expiry through the links on their FBID, where any
+  exist.
+- Expiry MUST NOT be applied retroactively to credits minted before the policy was set.
+
+## §3.3 Supply integrity
+
+<Aside type="tip" title="The public/private split">
+**Public:** total minted, total burned, total outstanding, and a proof that they
+reconcile. **Private:** who holds what, who spent what, and on what.
+</Aside>
+
+- The instance MUST publish a running supply commitment updated by every mint and burn.
+- Any observer MUST be able to verify `outstanding = minted − burned` from public data
+  and proofs alone, with no privileged access.
+- Individual balances MUST be private. A balance MUST NOT be inferable from public state
+  by an observer who is not the holder or an explicitly granted party.
+- An implementation MUST publish the supply aggregate at least once per some bounded
+  interval of ledger progress, and MUST make historical aggregates verifiable, so that
+  supply cannot be inflated and quietly corrected.
+
+## §3.4 Balances and holders
+
+- A balance is a projection of the holder's credit stream, not a stored number. The
+  authoritative answer to "how many credits" is always the ordered event set.
+- A holder MUST be an FBID. Bearer balances — a credit held by whoever holds a token —
+  MUST NOT exist, because they reintroduce transferability out of band.
+- A holder MUST be able to export their own balance history at any time, in full, in a
+  machine-readable form.
+
+## §3.5 The spend gate
+
+The interface through which a Plane 3 agent is permitted to spend. It is normative here
+and elaborated at [Agent Interface](/spec/agent-interface/).
+
+```json title="Spend gate authorisation"
+{
+  "id": "sg_01J93…",
+  "principal": "fbid:z6Mk…P",
+  "agent": "fbid:z6Mk…AG",
+  "economy": "ec_01J92…",
+  "limit": { "per_action": 25, "per_window": 200, "window_events": 1440 },
+  "scope": ["purpose:research-tools", "purpose:media-generation"],
+  "expires": { "lamport": 9600 },
+  "step_up_above": 50,
+  "revocable": true
+}
+```
+
+Normative rules:
+
+- An agent MUST NOT spend without a live gate authorisation naming that agent, that
+  economy, and a purpose within `scope`.
+- A gate MUST carry a **per-action limit**, a **windowed limit**, and an **expiry**. An
+  authorisation missing any of the three MUST be rejected.
+- A gate MUST be revocable by the principal alone, with immediate effect and without the
+  agent's cooperation.
+- `step_up_above` names the amount beyond which fresh human authorisation is REQUIRED
+  for a single action. It MUST NOT be disabled by the agent.
+- Every gated spend MUST be attributed on the ledger to **both** the agent and the
+  principal. An unattributable agent spend MUST be rejected.
+- The gate MUST fail closed. If gate state cannot be evaluated — offline, merge
+  conflict, expired — the spend MUST NOT proceed.
+- An agent MUST NOT hold a gate that outlives the task it was granted for, and
+  implementations SHOULD scope gates per task rather than per session.
+
+<Mermaid title="An agent spend: the gate is evaluated before anything is signed, and fails closed.">
+flowchart TD
+  A["Agent intends a spend"] --> B{"Live gate for<br/>agent + economy?"}
+  B -- no --> X["REJECT · fail closed"]
+  B -- yes --> C{"Purpose within scope?"}
+  C -- no --> X
+  C -- yes --> D{"Amount ≤ per_action<br/>and window remaining?"}
+  D -- no --> X
+  D -- yes --> E{"Amount > step_up_above?"}
+  E -- yes --> F["Require fresh human<br/>authorisation event"]
+  F --> G
+  E -- no --> G{"Balance sufficient?"}
+  G -- no --> X
+  G -- yes --> H["Sign fbp03.credit.spent<br/>attributed to agent AND principal"]
+</Mermaid>
+
+## §3.6 Zero-knowledge obligations
+
+| MUST be provable | MUST NOT be revealed |
+| --- | --- |
+| Supply reconciles: outstanding = minted − burned | Individual balances |
+| A holder had sufficient balance for a spend | The balance, or the amount, to non-parties |
+| A spend was within its gate's limits | The gate's limits, to non-parties |
+| A credit belongs to this instance and no other | The holder's identity, to non-parties |
+| A mint was authorised by a valid authority | Which authority, where the authority set permits it |
+
+- Balances MUST be private by default. An implementation that publishes balances is not
+  conformant, even if identifiers are pseudonymous — pseudonymous balance histories
+  de-anonymise readily.
+- Where a consumer needs analytics, it MUST be served by aggregate proofs, not by
+  per-holder data.
+
+## §3.7 Conformance checklist
+
+- [ ] No code path, flag, admin action or contract term produces cash redemption.
+- [ ] No conversion path exists between two economy instances.
+- [ ] Transfers to a destination outside the instance are unrepresentable in the API.
+- [ ] Public supply reconciles from public data alone, with no privileged access.
+- [ ] Individual balances are not derivable from public state.
+- [ ] An agent with an expired, revoked or unevaluable gate cannot spend.
+- [ ] Every agent spend names both agent and principal on the ledger.
+- [ ] Expiry, where enabled, appears as an attributed burn and is preceded by notice.

@@ -1,0 +1,181 @@
+---
+title: Agent Interface · Plane 3
+description: The normative interface for Companion OS agents — the primitives-only rule, the spend gate, attribution, revocation, memory boundaries, and the actions an agent may never take.
+specVersion: v0.1-draft
+normative: normative
+status: draft
+sidebar:
+  order: 10
+---
+
+import PlaneStack from '../../../components/PlaneStack.astro';
+import Mermaid from '../../../components/Mermaid.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<PlaneStack active={3} compact />
+
+A **Companion OS agent** is software that acts for a person: it holds context, takes
+initiative, and spends. This section defines what such an agent is permitted to do
+inside the protocol. It is normative for any implementation that ships an agent, and it
+constrains the agent, not the person.
+
+## §A.1 The primitives-only rule
+
+<Aside type="danger" title="Normative">
+An agent MUST act only through protocol primitives, through the same interfaces
+available to a human caller. There are **no side doors**: no private endpoint, no
+elevated key, no "agent mode" that relaxes a check, no direct ledger write.
+</Aside>
+
+- Any capability an agent has, a human caller MUST also be able to exercise through the
+  same interface. If an operation exists only for agents, it is a side door.
+- An agent MUST NOT construct or sign a raw `FBP-00` event. It calls a primitive; the
+  primitive writes.
+- An agent MUST NOT hold a mint authority (`FBP-03`), MUST NOT be a claim issuer
+  (`FBP-01`), and MUST NOT be a trust signatory (`FBP-04`). See §A.6.
+- Rate limits, authorisation checks and invariants MUST apply to agent calls identically.
+  An agent that is exempt from a check is a privileged principal, and the protocol has
+  none.
+
+**Rationale (non-normative).** Every side door begins as an efficiency. The reason this
+is a hard rule rather than a guideline is that an agent side door is the highest-value
+target in the system: it is a path that moves value, runs unattended, and is trusted by
+construction.
+
+## §A.2 The agent identity
+
+- An agent MUST have its own FBID, distinct from its principal's. An agent MUST NOT sign
+  with a principal's key, and MUST NOT be issued one.
+- The binding between agent and principal MUST be an appended event, scoped and expiring
+  like any other grant (`FBP-01` §1.4).
+- An agent's FBID MUST be attributable to the party that operates it, so that a
+  misbehaving agent is traceable to an accountable operator.
+- A principal MAY authorise many agents. Agents MUST NOT delegate to other agents unless
+  the grant is explicitly `delegable`, and a delegate's scope and expiry MUST be a
+  subset of the parent's.
+
+## §A.3 The spend gate
+
+Normatively defined in [FBP-03 §3.5](/spec/fbp-03-stableflow/#35-the-spend-gate). The
+interface obligations here are additional:
+
+```json title="Spend gate — evaluation input"
+{
+  "agent": "fbid:z6Mk…AG",
+  "principal": "fbid:z6Mk…P",
+  "economy": "ec_01J92…",
+  "purpose": "purpose:media-generation",
+  "amount": 12,
+  "at": { "lamport": 9412 }
+}
+```
+
+Evaluation MUST be:
+
+1. **Explicit.** The gate is a distinct, testable component. An implementation MUST be
+   able to demonstrate the gate rejecting a spend, in isolation.
+2. **Fail-closed.** If gate state cannot be evaluated — offline, expired, conflicted,
+   unreachable policy — the spend MUST NOT proceed. Fail-open MUST NOT be an option, a
+   flag, or a fallback.
+3. **Ahead of signing.** The gate MUST be evaluated before anything is signed. An
+   implementation MUST NOT sign and then compensate.
+4. **Auditable.** Every gate decision — allow *and* deny — MUST be recorded locally with
+   its inputs, and allows MUST be attributable on the ledger.
+5. **Non-bypassable by the agent.** An agent MUST NOT be able to raise its own limit,
+   extend its own expiry, widen its own scope, or disable `step_up_above`. A request to
+   do so MUST be routed to the principal as a request, never applied as a change.
+
+<Mermaid title="Where the gate sits: an agent's intent never reaches a primitive unevaluated.">
+flowchart LR
+  A["Agent intent"] --> G{"Spend gate<br/>limit · scope · expiry"}
+  G -- deny --> D["Recorded denial<br/>agent informed<br/>nothing signed"]
+  G -- step-up --> H["Human authorisation<br/>event REQUIRED"]
+  H --> P
+  G -- allow --> P["Primitive (Plane 2)"]
+  P --> Z["Privacy Core"]
+  Z --> Q["Plane 0 queue"]
+  A -. MUST NOT exist .-> P
+</Mermaid>
+
+## §A.4 Attribution
+
+<Aside type="danger" title="Normative">
+Every action an agent takes MUST be attributable on the ledger to **both** the agent and
+the principal it acted for. An action that cannot be so attributed MUST be rejected.
+</Aside>
+
+- The `author` of an agent-initiated event MUST be the agent's device-scoped identifier,
+  and the event MUST carry a reference to the gate authorisation that permitted it.
+- Attribution MUST survive the agent's deletion. An operator MUST NOT be able to erase
+  what an agent did by decommissioning it.
+- A principal MUST be able to enumerate every action taken on their behalf, by agent, at
+  any time, without asking the operator.
+- Where an agent acts on a standing instruction, the instruction MUST be referenced by
+  commitment, so that "why did it do that" is answerable after the fact.
+
+## §A.5 Revocation and the off switch
+
+- A principal MUST be able to revoke an agent's authority **unilaterally and
+  immediately**, and revocation MUST NOT require the agent's cooperation, availability
+  or consent.
+- Revocation MUST take effect at the primitive layer. An implementation MUST NOT rely on
+  the agent honouring its own revocation.
+- After revocation, in-flight actions that have not passed the gate MUST fail. Actions
+  already signed and queued MUST remain valid — they were authorised when taken, and
+  invariant 1 of FBP-00 forbids rewriting that.
+- An agent MUST NOT retain a credential, cached token or derived key that outlives its
+  grant. Implementations MUST demonstrate this with a revocation test.
+- A principal MUST be able to see, in one place, every agent that currently holds
+  authority over anything of theirs.
+
+## §A.6 What an agent MUST NEVER do
+
+This list is exhaustive as of `v0.1-draft`; additions are `MINOR`, removals are `MAJOR`.
+
+| An agent MUST NEVER | Because |
+| --- | --- |
+| Sign as a trust signatory (`FBP-04`) | Agents spend; they do not consent. Consent is human. |
+| Satisfy a recovery quorum (`FBP-01` §1.6) | Recovery is the last line against identity capture. |
+| Issue or revoke a claim as an issuer (`FBP-01`) | Attestation is an act of a responsible party. |
+| Hold a mint authority (`FBP-03`) | Unattended issuance is unbounded issuance. |
+| Amend a trust (`FBP-04` §4.6) | Sealed rules change only by their own terms, signed by people. |
+| Widen its own gate, scope or expiry | A self-widening boundary is not a boundary. |
+| Act with an unevaluable gate | Fail-closed is not situational. |
+| Take an action it cannot attribute | Unattributable action is indistinguishable from compromise. |
+| Present itself as its principal | A person MUST always be able to tell who is acting. |
+
+## §A.7 Memory and context
+
+Agents hold context, which is personal data by another name.
+
+- An agent's memory of a principal MUST be readable and deletable by that principal, in
+  full, at any time.
+- An agent MUST NOT retain context beyond the life of its grant, except where the
+  principal has separately and explicitly asked it to.
+- An agent MUST NOT share context between principals. Where an agent serves several
+  people, the isolation MUST be structural, not a filter applied at output time.
+- Context that would be private under [Privacy Core](/spec/privacy-core/) MUST NOT become
+  public by passing through an agent. An agent is not a laundering path for cleartext.
+- An agent SHOULD store its context on the principal's own infrastructure where the
+  deployment allows.
+
+## §A.8 Disclosure to the person
+
+- A person MUST always be able to tell whether they are dealing with an agent or a human.
+  An agent MUST NOT claim to be its principal.
+- Before an agent takes an irreversible or outward-facing action for the first time in a
+  given scope, the implementation MUST obtain explicit authorisation for that scope.
+- An agent SHOULD state what it is about to do, in terms of the primitive it will call
+  and the value at stake, before calling it.
+
+## §A.9 Conformance checklist
+
+- [ ] No API surface exists that only an agent can reach.
+- [ ] An agent cannot sign a raw ledger event.
+- [ ] The spend gate is a separable component with a demonstrable deny path.
+- [ ] The gate fails closed when offline, expired or conflicted.
+- [ ] An agent cannot alter its own limits, scope or expiry.
+- [ ] Every agent action names both agent and principal on the ledger.
+- [ ] Revoking an agent takes effect without the agent's cooperation.
+- [ ] Agent memory is enumerable and deletable by the principal.
+- [ ] The agent cannot satisfy any FBP-04 threshold or FBP-01 recovery quorum.

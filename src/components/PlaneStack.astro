@@ -1,0 +1,122 @@
+---
+/**
+ * The five-plane stack. Hand-authored SVG so it stays crisp, themeable and
+ * dependency-free — the diagram is normative furniture, not decoration.
+ *
+ * Reading order is top-down (Plane 4 → Plane 0), which matches the spec: each
+ * layer speaks only to the layer directly below it.
+ */
+interface Props {
+  /** Highlight one plane, e.g. `1` on the Privacy Core page. */
+  active?: 0 | 1 | 2 | 3 | 4;
+  /** Compact variant drops the descriptions. */
+  compact?: boolean;
+}
+
+const { active, compact = false } = Astro.props;
+
+const planes = [
+  {
+    n: 4,
+    name: 'Applications',
+    tag: 'CONSUMERS',
+    desc: 'Products built on the protocol, under identical license terms. Application profiles live here.',
+    accent: 'var(--fb-dim)',
+  },
+  {
+    n: 3,
+    name: 'Companion OS',
+    tag: 'AGENTS',
+    desc: 'Agents that act for a person — only ever through protocol primitives, through a spend gate, with no side doors.',
+    accent: 'var(--fb-jade)',
+  },
+  {
+    n: 2,
+    name: 'Protocol · Layer 0',
+    tag: 'PRIMITIVES',
+    desc: 'FBID · FlowShare · StableFlow · LifeKey — four primitives written over one append-only ledger.',
+    accent: 'var(--fb-gold)',
+  },
+  {
+    n: 1,
+    name: 'Privacy Core',
+    tag: 'ZERO-KNOWLEDGE',
+    desc: 'Every primitive proves without revealing. Public state is commitments and proofs, never contents.',
+    accent: 'var(--fb-violet)',
+  },
+  {
+    n: 0,
+    name: 'Resilience Transport',
+    tag: 'OFFLINE-FIRST',
+    desc: 'Sign locally, queue on the mesh, reconcile when a path exists. The floor never assumes the internet.',
+    accent: 'var(--fb-clay)',
+  },
+];
+
+const rowH = compact ? 62 : 86;
+const gap = 12;
+const padX = 4;
+const width = 720;
+const height = planes.length * rowH + (planes.length - 1) * gap + 8;
+const titleId = `plane-stack-${active ?? 'all'}-${compact ? 'c' : 'full'}`;
+---
+
+<svg
+  class="plane-stack"
+  viewBox={`0 0 ${width} ${height}`}
+  role="img"
+  aria-labelledby={titleId}
+  preserveAspectRatio="xMidYMid meet"
+>
+  <title id={titleId}>
+    The FlowBond five-plane stack, from Plane 4 Applications at the top down to Plane 0
+    Resilience Transport at the bottom. Each plane speaks only to the plane directly below it.
+  </title>
+
+  {
+    planes.map((p, i) => {
+      const y = i * (rowH + gap) + 4;
+      const isActive = active === p.n;
+      return (
+        <g>
+          <rect
+            class="pl-band"
+            x={padX}
+            y={y}
+            width={width - padX * 2}
+            height={rowH}
+            rx="8"
+            style={
+              isActive
+                ? `stroke:${p.accent};stroke-width:1.5;fill:color-mix(in srgb, ${p.accent} 9%, var(--fb-surface))`
+                : undefined
+            }
+          />
+          <rect x={padX} y={y} width="3" height={rowH} rx="1.5" fill={p.accent} opacity={isActive ? 1 : 0.6} />
+          <text class="pl-num" x="26" y={y + 26}>
+            {`PLANE ${p.n}`}
+          </text>
+          <text class="pl-name" x="26" y={compact ? y + 47 : y + 51}>
+            {p.name}
+          </text>
+          {!compact && (
+            <foreignObject x="250" y={y + 14} width={width - 250 - 24} height={rowH - 20}>
+              <div
+                xmlns="http://www.w3.org/1999/xhtml"
+                style="font-family:var(--fb-font-body);font-size:12.5px;line-height:1.5;color:var(--fb-dim)"
+              >
+                {p.desc}
+              </div>
+            </foreignObject>
+          )}
+          <text class="pl-tag" x={width - 26} y={y + 26} text-anchor="end" style={`fill:${p.accent}`}>
+            {p.tag}
+          </text>
+          {i < planes.length - 1 && (
+            <path class="pl-arrow" d={`M ${width / 2} ${y + rowH + 1} L ${width / 2} ${y + rowH + gap - 1}`} />
+          )}
+        </g>
+      );
+    })
+  }
+</svg>

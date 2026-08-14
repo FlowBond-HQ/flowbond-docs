@@ -1,0 +1,89 @@
+---
+/**
+ * Mermaid diagrams, rendered in the browser from a local bundle — no CDN, no
+ * headless-browser build step. The diagram source stays in the page as text,
+ * so it is greppable in git and readable with JavaScript off.
+ */
+interface Props {
+  /** Accessible description of what the diagram shows. Required. */
+  title: string;
+}
+const { title } = Astro.props;
+const code = (await Astro.slots.render('default')).replace(/<[^>]+>/g, '').trim();
+const decoded = code
+  .replace(/&quot;/g, '"')
+  .replace(/&#39;/g, "'")
+  .replace(/&lt;/g, '<')
+  .replace(/&gt;/g, '>')
+  .replace(/&amp;/g, '&');
+---
+
+<figure class="fb-mermaid not-content">
+  <pre class="mermaid" role="img" aria-label={title}>{decoded}</pre>
+  <figcaption>{title}</figcaption>
+</figure>
+
+<style is:global>
+  .fb-mermaid {
+    margin: 1.8rem 0;
+    padding: 1.1rem;
+    border: 1px solid var(--fb-line);
+    border-radius: 8px;
+    background: var(--fb-surface);
+    overflow-x: auto;
+  }
+  .fb-mermaid pre.mermaid {
+    margin: 0;
+    background: none;
+    border: 0;
+    font-family: var(--fb-font-mono);
+    font-size: 0.78rem;
+    color: var(--fb-dim);
+    white-space: pre;
+  }
+  .fb-mermaid pre.mermaid[data-processed] {
+    display: flex;
+    justify-content: center;
+  }
+  .fb-mermaid figcaption {
+    margin-top: 0.8rem;
+    font-family: var(--fb-font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fb-dim);
+    text-align: center;
+  }
+</style>
+
+<script>
+  const render = async () => {
+    const nodes = document.querySelectorAll('pre.mermaid:not([data-processed])');
+    if (!nodes.length) return;
+    const { default: mermaid } = await import('mermaid');
+    const dark = document.documentElement.dataset.theme !== 'light';
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: 'base',
+      fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+      themeVariables: {
+        background: dark ? '#1B2A27' : '#ffffff',
+        primaryColor: dark ? '#223330' : '#efeadb',
+        primaryTextColor: dark ? '#EDE6D6' : '#1a2422',
+        primaryBorderColor: dark ? '#D9A441' : '#8a6111',
+        lineColor: dark ? '#6FBF9E' : '#1f7256',
+        secondaryColor: dark ? '#1B2A27' : '#f6f2e7',
+        tertiaryColor: dark ? '#14201E' : '#ffffff',
+        textColor: dark ? '#EDE6D6' : '#1a2422',
+        noteBkgColor: dark ? '#223330' : '#efeadb',
+        noteTextColor: dark ? '#B7AF9D' : '#5c6764',
+        noteBorderColor: dark ? '#9D8CD4' : '#574398',
+      },
+    });
+    await mermaid.run({ nodes: Array.from(nodes) as HTMLElement[] });
+  };
+
+  render();
+  document.addEventListener('astro:page-load', render);
+</script>

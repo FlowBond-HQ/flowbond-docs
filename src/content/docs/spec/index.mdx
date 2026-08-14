@@ -1,0 +1,140 @@
+---
+title: The FlowBond Protocol Specification
+description: Status, version, license and reading conventions for the FlowBond Protocol specification.
+specVersion: v0.1-draft
+normative: normative
+status: draft
+sidebar:
+  order: 1
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The FlowBond Protocol is a **Layer 0**: one append-only ledger and four primitives
+written over it — identity, split, credit, trust — with zero-knowledge obligations and
+an offline-first transport floor beneath them. This document is the normative
+definition of that protocol.
+
+## Status of this document
+
+| Field | Value |
+| --- | --- |
+| Version | `v0.1-draft` |
+| Status | Draft — implementable, wording open to challenge |
+| Editor | FlowBond Labs (FlowBond Inc., Delaware) |
+| Steward | FlowBond Foundation (forming; jurisdiction pending counsel) |
+| Author of record | Steph |
+| Change process | [RFC](/governance/rfc-process/) — issue → draft PR → public review → merge → changelog |
+| Audit log | git history of this repository + append-only [CHANGELOG](/changelog/) |
+| Machine-readable index | [`/spec.json`](/spec.json) |
+
+**Draft** means: the primitives and their invariants are stable enough to build
+against, and the exact wording MAY still change through the RFC process. A `MAJOR`
+version bump is REQUIRED before any primitive's semantics change. Nothing in this
+document at `v0.1-draft` SHOULD be treated as frozen prose; everything in it SHOULD be
+treated as a real constraint.
+
+## How to read this specification
+
+### Normative keywords
+
+Keywords are used in the sense of RFC 2119 and RFC 8174, and are rendered as tokens
+wherever they appear:
+
+<dl>
+  <dt>MUST · REQUIRED · SHALL</dt>
+  <dd>An absolute requirement. An implementation that violates it is not conformant, and MUST NOT claim conformance.</dd>
+  <dt>MUST NOT · SHALL NOT · NEVER</dt>
+  <dd>An absolute prohibition. `NEVER` is used where the prohibition is constitutional — it applies for all time, to all consumers, and cannot be waived by agreement, configuration or contract.</dd>
+  <dt>SHOULD · RECOMMENDED</dt>
+  <dd>There MAY be valid reasons to ignore this in particular circumstances, but the full implications MUST be understood and weighed first.</dd>
+  <dt>SHOULD NOT · NOT RECOMMENDED</dt>
+  <dd>There MAY be valid reasons to do this anyway, but the implications MUST be understood and weighed first.</dd>
+  <dt>MAY · OPTIONAL</dt>
+  <dd>Truly optional. An implementation that omits it MUST interoperate with one that includes it, and vice versa.</dd>
+</dl>
+
+These keywords carry normative force **only in ALL CAPS**. The same words in lower case
+are ordinary prose.
+
+### Normative and non-normative material
+
+Every page carries a badge stating whether it is `normative` or `non-normative`.
+
+- **Normative** pages define conformance. §1 Architecture, FBP-00 through FBP-04, the
+  Privacy Core, the Transport requirements, the Agent Interface and the application
+  profiles are normative.
+- **Non-normative** pages provide context and do not constrain implementations. The
+  [Ecosystem](/ecosystem/) index and everything under `/governance/` are non-normative
+  as to the protocol itself — governance binds the editors, not the implementers.
+
+Within a normative page, blocks marked *Note* or *Rationale* are non-normative. They
+explain why a rule exists; they never add or soften a rule.
+
+### The consumer boundary
+
+<Aside type="caution" title="Rule 01 — the protocol does not know its consumers">
+No product, brand, company or project name appears in the body of this specification.
+The protocol MUST NOT special-case any consumer, and a conformant implementation MUST
+be reachable by an implementer who has never heard of any product built on it.
+
+Named implementations and consumers live in exactly one place: the non-normative
+[Ecosystem](/ecosystem/) index.
+</Aside>
+
+This is not a stylistic preference. A Layer 0 whose text names its own applications
+develops privileged paths for those applications, and privileged paths are how a
+protocol becomes a product. Where a real deployment is instructive, it appears as an
+anonymised **reference instance** — a pattern, not a party.
+
+### Reading order
+
+1. [§1 · Architecture — the five planes](/spec/architecture/) — the shape of the system and what each plane is allowed to know.
+2. [FBP-00 · Ledger](/spec/fbp-00-ledger/) — the event model every other primitive assumes.
+3. FBP-01 through FBP-04 — the primitives, in any order after FBP-00.
+4. [Privacy Core](/spec/privacy-core/) and [Transport](/spec/transport/) — cross-cutting obligations that apply to all of the above.
+5. [Agent Interface](/spec/agent-interface/) — how an autonomous agent is permitted to touch any of it.
+6. [Profiles](/spec/profiles/passport/) — compositions of the primitives that add no new primitives.
+
+Readers who only want to know whether a claimed implementation is conformant SHOULD
+read the *Invariants* section of each primitive page. Those sections are the shortest
+complete statement of the protocol.
+
+## Conformance
+
+An implementation claims conformance **to a version**, never to "FlowBond" in the
+abstract. A conformance claim MUST name:
+
+1. the spec version (e.g. `v0.1-draft`) and the git tag it was verified against;
+2. which primitives are implemented, by identifier (`FBP-00` … `FBP-04`);
+3. which application profiles, if any, are implemented;
+4. which OPTIONAL behaviours are omitted;
+5. the proof-system profile in use, where the Privacy Core requires proofs.
+
+An implementation that implements a primitive **partially** MUST NOT claim that
+primitive. Partial implementations of `FBP-00` in particular are meaningless: an
+append-only ledger that permits one update is not an append-only ledger.
+
+A conformance claim is a public statement. It SHOULD be published alongside the
+verification steps in [/audit](/audit/), so that a third party can reproduce it.
+
+## What this specification does not define
+
+- **Payment rails.** Card processors, wallets, bank transfers and app-store billing are
+  adapters. See [FBP-02](/spec/fbp-02-flowshare/#rails-are-adapters).
+- **Proof systems.** The spec defines *what* MUST be provable. Which proving system
+  discharges the obligation is an implementation profile. See [Privacy Core](/spec/privacy-core/#proof-system-profiles).
+- **Storage engines, wire formats below the transport floor, key management products,
+  or user interfaces.** These are free choices, constrained only where a primitive's
+  invariant reaches into them.
+- **Business models.** The protocol is indifferent to how a consumer makes money, with
+  exactly one exception: the non-redeemability invariant in
+  [FBP-03](/spec/fbp-03-stableflow/#invariants), which exists to keep a credit from
+  becoming an unregistered financial instrument.
+
+## License
+
+The license of this specification text and of the reference material is an **open
+question** tracked at [/spec/license](/spec/license/). Until it resolves, the text is
+published for reading, review and RFC participation. Implementers SHOULD track that
+page before shipping a commercial implementation.

@@ -1,0 +1,227 @@
+---
+title: FBP-04 · LifeKey
+description: Programmable trust — parties, signatories, thresholds, conditions, the advisory-only counselor role, soulbound bindings, sealed amendment rules, and proving a condition without revealing the terms.
+specVersion: v0.1-draft
+normative: normative
+status: draft
+fbp: FBP-04
+sidebar:
+  order: 7
+---
+
+import Mermaid from '../../../components/Mermaid.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+`FBP-04` is the primitive for arrangements that must hold when the parties are not in
+the room — and, eventually, when some of them are gone. A **trust** is a sealed set of
+rules with named parties, signatories, thresholds and conditions, which changes only by
+its own terms.
+
+## Invariants
+
+<Aside type="danger" title="Normative — FBP-04 invariants">
+1. **The trust governs its own amendment.** A trust MUST be amendable only through the rules sealed into it at creation. No operator, no platform, no majority outside the sealed rules MAY amend it.
+2. **The counselor is NEVER a signatory.** The counselor role is advisory-scoped. It MUST NOT sign, MUST NOT count toward any threshold, and MUST NOT hold a key that can act.
+3. **Soulbound bindings are non-transferable.** A binding created by a trust MUST NOT be transferred, sold, delegated or assigned. Recognition MUST NEVER be convertible into equity or into a transferable claim.
+4. **Conditions are provable without disclosure.** Whether a condition is met MUST be provable to a verifier who learns nothing else about the trust.
+5. **Sealed at creation, appended forever.** The trust's rules, once sealed, MUST NOT be edited. Every subsequent state is an appended event evaluated against the seal.
+</Aside>
+
+## §4.1 The trust object
+
+```json title="Trust — normative schema"
+{
+  "v": 1,
+  "id": "tr_01J94…",
+  "stream": "s_c31a…",
+  "seal": {
+    "terms_commitment": { "alg": "sha256", "digest": "…", "salt_commitment": "0x…" },
+    "sealed_at": "e_01J94…",
+    "amendment_rule": "amd_01J94…"
+  },
+  "parties": [
+    { "party": "fbid:z6Mk…S", "role": "settlor" },
+    { "party": "fbid:z6Mk…T1", "role": "trustee" },
+    { "party": "fbid:z6Mk…T2", "role": "trustee" },
+    { "party": "fbid:z6Mk…B1", "role": "beneficiary" },
+    { "party": "fbid:z6Mk…C", "role": "counselor" }
+  ],
+  "signatories": {
+    "members": ["fbid:z6Mk…T1", "fbid:z6Mk…T2", "fbid:z6Mk…S"],
+    "threshold": 2,
+    "quorum_rules": ["no_single_party_class"]
+  },
+  "conditions": ["cond_01J94…"],
+  "bindings": ["bd_01J94…"],
+  "successor_rule": "succ_01J94…",
+  "status": "active"
+}
+```
+
+### Roles
+
+| Role | MAY sign | Counts toward threshold | Notes |
+| --- | --- | --- | --- |
+| `settlor` | MAY | MAY | The party who creates and seals the trust. |
+| `trustee` | MUST be able to | MUST | Acts under the sealed rules. At least one is REQUIRED. |
+| `beneficiary` | MUST NOT, unless also a trustee | MUST NOT, as beneficiary | Receives under conditions. |
+| `counselor` | MUST NOT | MUST NEVER | Advisory-scoped. See §4.3. |
+| `observer` | MUST NOT | MUST NOT | Read access under a scoped view key only. |
+
+Normative rules:
+
+- Role assignment MUST be explicit. A party holding two roles MUST be listed twice, and
+  the constraints of the stricter role apply.
+- `quorum_rules` constrain how a threshold may be met. `no_single_party_class` REQUIRES
+  that a satisfying quorum draw from more than one role class, preventing a group of
+  co-interested parties from acting alone.
+- A trust MUST have at least one trustee and at least one condition. A trust with no
+  conditions is a list of names.
+
+## §4.2 Thresholds and signatories
+
+- `threshold` MUST be an integer `≥ 2` where more than one signatory exists, and MUST NOT
+  exceed the number of members.
+- A signature MUST be an event signed by that party's FBID key. A signature MUST NOT be
+  delegable to an agent — a Plane 3 agent MUST NOT ever satisfy a trust threshold, under
+  any gate. This is a hard boundary: agents spend, they do not consent.
+- Threshold evaluation MUST be deterministic and MUST use only ledger events.
+- Where a signatory's FBID is retired, the `successor_rule` governs. If the rule does not
+  cover the case, the trust MUST enter `blocked` status rather than proceed with a
+  reduced threshold. A silently reduced threshold is the failure mode this primitive
+  exists to prevent.
+
+## §4.3 The counselor role
+
+<Aside type="danger" title="Advisory-scoped, and only advisory">
+A counselor MAY read what a scoped view key permits, MAY publish advisory events, and
+MAY be REQUIRED to be consulted before an action. A counselor MUST NEVER sign, MUST
+NEVER count toward a threshold, MUST NEVER hold a key that can act on the trust, and
+MUST NEVER be able to block an action that the sealed rules permit.
+</Aside>
+
+- A trust MAY require an `fbp04.counsel.recorded` event to exist before a given action.
+  Requiring the *existence* of advice is permitted; requiring the advice to be favourable
+  is NOT — that would make the counselor a signatory by another name.
+- Counsel MUST be recorded as an appended event with a commitment to its content, so
+  that it is later provable that advice was given, and provable what it said if the
+  parties disclose it.
+- A counselor's grant MUST be independently revocable and MUST NOT be a condition of the
+  trust's continued operation.
+
+**Rationale (non-normative).** The advisor who gradually becomes a decision-maker is the
+oldest failure mode in fiduciary arrangements. Separating "was consulted" from "consented"
+at the protocol level makes the drift impossible rather than merely discouraged.
+
+## §4.4 Conditions
+
+Conditions reuse the `FBP-02` condition kinds and add three:
+
+| Kind | Meaning |
+| --- | --- |
+| `age_reached` | A beneficiary has reached an age, proven as a predicate over an FBP-01 claim. |
+| `milestone_attested` | A named milestone attested by a quorum defined in the seal. |
+| `succession_triggered` | A successor rule has fired, e.g. a signatory's retirement or an incapacity attestation. |
+
+- A condition MUST be evaluable from ledger events plus proofs. A condition requiring an
+  off-ledger judgement MUST be expressed as an attestation by a named party, so that the
+  judgement itself is attributable.
+- `age_reached` MUST be satisfied by a zero-knowledge predicate proof. A date of birth
+  MUST NOT be transmitted to satisfy it.
+- Condition evaluation MUST be monotonic, as in `FBP-02` §2.2.
+- The `on_fail` behaviour of a trust condition MUST be `hold`. A trust MUST NOT
+  distribute on an unmet condition under any circumstance.
+
+## §4.5 Soulbound bindings
+
+A **binding** attaches something to a party permanently: a recognition, an honour, a
+membership, a right that is personal and not economic.
+
+```json title="Binding"
+{
+  "id": "bd_01J94…",
+  "trust": "tr_01J94…",
+  "holder": "fbid:z6Mk…B1",
+  "kind": "recognition",
+  "transferable": false,
+  "revocable_by": "sealed_rule",
+  "commitment": { "alg": "sha256", "digest": "…", "salt_commitment": "0x…" }
+}
+```
+
+- `transferable` MUST be `false`. A binding MUST NOT be transferred, sold, lent,
+  wrapped, or represented by a transferable token. An implementation MUST NOT expose an
+  interface capable of expressing a transfer.
+- A binding MUST NOT confer an economic claim. **Recognition is NEVER equity.** Where a
+  party is meant to receive value, that is an `FBP-02` split or an `FBP-03` credit — not
+  a binding.
+- A binding MAY be revoked only where the sealed rules provide for it, and revocation
+  MUST be an appended event that leaves the original binding readable as history.
+- A binding MUST be presentable as a zero-knowledge proof — "the holder holds a binding
+  of this kind from this trust" — without revealing the holder, the trust, or the other
+  bindings that trust has issued.
+
+## §4.6 Amendment and succession
+
+<Mermaid title="Amendment path: only the sealed rule can change a sealed trust.">
+flowchart TD
+  A["Proposed amendment"] --> B{"Does the sealed<br/>amendment_rule permit<br/>this class of change?"}
+  B -- no --> R["REJECT · the trust cannot be<br/>amended from outside its own rules"]
+  B -- yes --> C{"Quorum met under<br/>signatories + quorum_rules?"}
+  C -- no --> H["HOLD · pending signatures"]
+  C -- yes --> D{"Counsel required<br/>by the seal?"}
+  D -- yes --> E["fbp04.counsel.recorded<br/>MUST exist · content not binding"]
+  E --> F
+  D -- no --> F["Mandatory delay elapses"]
+  F --> G["fbp04.trust.amended appended<br/>original seal remains readable"]
+</Mermaid>
+
+- The `amendment_rule` MUST be sealed at creation and MUST itself be amendable only if it
+  explicitly says so. A trust whose amendment rule can be replaced by a simple majority
+  is not sealed.
+- An amendment MUST NOT alter events already applied. Prior distributions stand.
+- An amendment MUST carry a mandatory delay expressed in ledger progress, during which
+  any party with standing under the seal MAY register an objection event. Objection does
+  not block unless the seal says it does; it makes the disagreement part of the record.
+- **Succession** MUST be defined at creation: what happens when a signatory dies, is
+  incapacitated, retires their FBID, or becomes unreachable. Incapacity MUST be
+  established by an attestation quorum named in the seal, never by a platform's
+  judgement.
+
+## §4.7 Zero-knowledge obligations
+
+| MUST be provable | MUST NOT be revealed |
+| --- | --- |
+| A condition is met (age, milestone, succession) | The condition's terms |
+| A quorum of signatories signed | Which signatories, to non-parties |
+| A holder holds a binding of a given kind | The trust, the corpus, or the other holders |
+| A distribution was permitted by the seal | The distribution amount or the corpus |
+| The counselor was consulted | What the counsel said |
+
+- The **corpus** — what the trust holds — MUST NOT be public protocol state.
+- A beneficiary MUST be able to prove entitlement to a third party (a school, a
+  registrar, a counterparty) without disclosing the trust's terms or the identities of
+  other beneficiaries.
+- Disclosure to a court or regulator MUST proceed through a scoped view key issued under
+  the sealed rules, and the issuance MUST be an appended event.
+
+## §4.8 Reference instance (non-normative)
+
+The pattern this primitive was drawn from is a **family trust**: a settlor, two trustees
+drawn from different sides of a family, beneficiaries who are minors at sealing time, an
+advisor who is deliberately given no vote, and distributions that unlock on ages and
+milestones. Nothing in that pattern is privileged by the protocol — it is one shape a
+sealed rule set can take, and it is described here only because it makes the roles
+concrete.
+
+## §4.9 Conformance checklist
+
+- [ ] No operator, platform or outside majority can amend a sealed trust.
+- [ ] The counselor cannot sign, cannot count toward a threshold, and cannot block.
+- [ ] An agent cannot satisfy a signature under any gate or delegation.
+- [ ] A retired signatory triggers the successor rule or blocks — never a silent
+      threshold reduction.
+- [ ] Bindings are non-transferable and inexpressible as a transfer in the API.
+- [ ] No binding carries an economic claim.
+- [ ] `age_reached` is satisfied with no date of birth transmitted.
+- [ ] The corpus is not derivable from public state.

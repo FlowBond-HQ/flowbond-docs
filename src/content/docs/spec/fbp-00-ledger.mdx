@@ -1,0 +1,241 @@
+---
+title: FBP-00 · The Ledger
+description: The append-only event spine every FlowBond primitive is written over — event format, signing rules, deterministic merge for mesh-delayed events, and the no-update/no-delete invariant.
+specVersion: v0.1-draft
+normative: normative
+status: draft
+fbp: FBP-00
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../components/Mermaid.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+Everything in this protocol is an event, and every event is appended. `FBP-00` defines
+what an event is, how it is signed, how events are ordered when they arrive out of
+order, and the one rule that must never bend.
+
+## Invariants
+
+<Aside type="danger" title="Normative — FBP-00 invariants">
+1. **Append-only.** An event, once accepted, MUST NOT be updated and MUST NOT be deleted. There is no edit operation and no delete operation at any layer of a conformant implementation.
+2. **Correction by succession.** A mistake is corrected by appending a corrective event that references the erroneous one. The erroneous event remains, and MUST remain readable as history.
+3. **Local signature.** Every event MUST be signed by its author before it leaves the device. An implementation MUST NOT depend on a server to sign.
+4. **Commitments, not contents.** The ledger stores a commitment to the payload. The payload itself is NEVER a required part of the public record.
+5. **Deterministic merge.** Two conformant nodes given the same set of events MUST arrive at the same state, regardless of arrival order.
+6. **Verifiability without readability.** Any party MUST be able to verify that history is intact. Only authorised parties MAY read what it says.
+</Aside>
+
+Invariant 1 is the reason the rest of the protocol can be audited at all. An
+implementation with a privileged `UPDATE` — an admin console, a migration script, a
+support tool that "fixes" a row — is not a conformant FBP-00 implementation, however
+rarely the capability is used.
+
+## §0.1 Event object
+
+An event is a JSON object. The following schema is normative; unknown top-level fields
+MUST be rejected.
+
+```json title="Event — normative schema"
+{
+  "v": 1,
+  "id": "e_01J8Z4K2XQ9F7T3M0B6RH5NDCW",
+  "stream": "s_9f2c1d6a4b8e0713",
+  "type": "fbp02.split.created",
+  "payload_commitment": {
+    "alg": "sha256",
+    "digest": "b1946ac92492d2347c6235b4d2611184…",
+    "salt_commitment": "0x8f3a…"
+  },
+  "proof": {
+    "profile": "fbp1.groth16.bn254",
+    "statement": "split_sums_to_whole",
+    "data": "base64url…"
+  },
+  "causal": ["e_01J8Z4K0M7A5PQ2R9YV3TS1XHD"],
+  "ts": {
+    "author": "2026-08-14T17:04:11.412Z",
+    "lamport": 4412
+  },
+  "author": "fbid:z6Mk…:dev_7c1",
+  "sig": {
+    "alg": "ed25519",
+    "value": "base64url…"
+  }
+}
+```
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `v` | integer | MUST | Event envelope version. `1` at spec `v0.1-draft`. A node that does not understand `v` MUST reject the event rather than guess. |
+| `id` | string | MUST | Globally unique, lexicographically sortable identifier (ULID-class). MUST be derived from content, not from a central counter. |
+| `stream` | string | MUST | The stream this event belongs to. Streams partition the ledger; ordering is guaranteed *within* a stream. |
+| `type` | string | MUST | Reverse-dotted event type, prefixed by the primitive that owns it (`fbp01.` … `fbp04.`). A consumer MUST NOT invent a type in a reserved `fbpNN.` namespace. |
+| `payload_commitment` | object | MUST | Commitment to the payload. See §0.3. |
+| `payload` | object | MAY | The cleartext payload. OPTIONAL, and present only where the parties have agreed the content is not private. Its absence MUST NOT affect verification. |
+| `proof` | object | SHOULD | Zero-knowledge proof discharging the statements the owning primitive requires. REQUIRED wherever the primitive says so. |
+| `causal` | string[] | MUST | Identifiers of the events this one causally depends on. MAY be empty for a stream's first event. |
+| `ts.author` | RFC 3339 | MUST | The author's local clock at signing. Advisory only — MUST NOT be used for ordering. |
+| `ts.lamport` | integer | MUST | Logical clock. Used for ordering. See §0.4. |
+| `author` | string | MUST | The signing identity and device, as an FBID device-scoped identifier. |
+| `sig` | object | MUST | Signature over the canonical serialisation of every other field. |
+
+### Reserved namespaces
+
+`fbp00.` through `fbp04.` are reserved for this specification. Consumers MUST namespace
+their own event types under a prefix they control, and MUST NOT rely on the protocol
+interpreting them.
+
+## §0.2 Streams
+
+A **stream** is an ordered, append-only sequence of events sharing a subject — an
+identity, a split, an economy instance, a trust.
+
+- A stream identifier MUST be opaque. It MUST NOT encode the subject, the owner, or any
+  classification of the subject. Deriving `stream` from a hash of a public key is a
+  conformance failure: it links every event of that key.
+- Ordering is guaranteed within a stream. Across streams, only the causal graph
+  (`causal`) constrains order.
+- A stream MUST NOT be reused after its subject is retired. Retirement is itself an
+  event.
+- A node MAY hold a partial ledger — some streams and not others — and MUST be able to
+  verify the streams it holds without the ones it does not.
+
+## §0.3 Payload commitments
+
+```json title="payload_commitment"
+{
+  "alg": "sha256",
+  "digest": "<hex digest of canonical payload bytes ‖ salt>",
+  "salt_commitment": "<commitment to the salt, so the salt can be proven later>"
+}
+```
+
+Normative rules:
+
+- The digest MUST be taken over the canonical serialisation of the payload concatenated
+  with a per-event random salt of at least 128 bits. Unsalted digests permit dictionary
+  attacks over low-entropy payloads (amounts, dates, yes/no answers) and MUST NOT be
+  used.
+- `alg` MUST name a collision-resistant hash. `sha256` is REQUIRED to be supported;
+  implementations MAY support stronger.
+- The cleartext payload MUST NOT be required to validate the event. A verifier with only
+  the commitment MUST be able to check the signature, the causal links and the proofs.
+- Revealing a payload later is a **disclosure**, not a ledger operation: the subject
+  hands over payload and salt out of band, and the recipient checks it against the
+  committed digest. Disclosure MUST NOT append to the ledger unless the subject chooses
+  to record that a disclosure occurred.
+
+**ZK note (non-normative).** The ledger records that something happened and proves what
+kind of thing it was; it does not record what it said. History is provable, not
+readable. This is what allows a public audit of an economy whose individual
+transactions stay private.
+
+## §0.4 Ordering and canonical serialisation
+
+**Canonical serialisation.** Before signing or hashing, an object MUST be serialised
+deterministically: UTF-8, object keys sorted by Unicode code point, no insignificant
+whitespace, no floating-point numbers (all quantities are integers in their smallest
+unit, or decimal strings). Two implementations MUST produce byte-identical output for
+the same object.
+
+**Logical clocks.** `ts.lamport` MUST be assigned as `1 + max(lamport of all events in
+causal)`, or `1` for a stream's first event. Wall-clock time MUST NOT participate in
+ordering: a device that has been off-grid for a week has a plausible clock and an
+irrelevant one.
+
+**Total order within a stream.** Events are ordered by:
+
+1. ascending `ts.lamport`;
+2. then ascending `id` (bytewise) as the tie-break.
+
+The tie-break is arbitrary but MUST be identical everywhere, which is the whole point.
+
+## §0.5 Deterministic merge
+
+Mesh-delayed events are the normal case, not the exception. A node MAY receive an event
+whose `causal` parents it has not yet seen, days after it was signed.
+
+<Mermaid title="Merge of a mesh-delayed event into a stream that has moved on.">
+flowchart LR
+  A["e1 · lamport 4"] --> B["e2 · lamport 5"]
+  A --> C["e3 · lamport 5<br/>(arrives 6 days late)"]
+  B --> D["merge point<br/>order by lamport, then id"]
+  C --> D
+  D --> E["e4 · lamport 6<br/>causal: [e2, e3]"]
+</Mermaid>
+
+Normative merge algorithm:
+
+1. **Buffer orphans.** An event whose `causal` parents are not all present MUST be
+   buffered, not rejected. It MUST NOT be applied until its parents arrive.
+2. **Idempotence.** Receiving an event already held MUST be a no-op. Duplicate delivery
+   is expected on a store-and-forward mesh.
+3. **Apply in total order.** Once parents are present, apply in the §0.4 order. A node
+   that had already applied a later-`lamport` event MUST recompute stream state from the
+   insertion point — it MUST NOT append the late event at the end and call it settled.
+4. **Convergence.** After applying the same event set, two nodes MUST hold identical
+   stream state. Implementations SHOULD expose a stream digest so this is testable.
+5. **No resurrection.** Buffered orphans MUST expire from the buffer only by policy, and
+   expiry MUST be logged locally. A silently dropped event is indistinguishable from
+   censorship.
+
+### Conflicts
+
+Two events that are causally concurrent and semantically incompatible — two releases of
+the same split, two revocations with different terms — are a **conflict**. Conflicts are
+resolved by the owning primitive, never by FBP-00:
+
+- FBP-00 MUST surface both events and MUST NOT discard either.
+- The primitive MUST define a deterministic resolution rule, and that rule MUST be a
+  pure function of the two events. "Last writer wins by wall clock" is NOT a permitted
+  rule.
+- The resolution MUST itself be appended as an event, so that the resolution is as
+  auditable as the conflict.
+
+## §0.6 Signing and keys
+
+- Signature algorithm MUST be `ed25519` at `v0.1-draft`. Additional algorithms are a
+  `MINOR` change; removing one is `MAJOR`.
+- The signing key MUST be a **device key**, bound to an FBID but distinct from it. A
+  person's identity key MUST NOT be required to be present on every device.
+- Key rotation is an FBP-01 event. Events signed by a key before its rotation MUST
+  remain valid after it — retroactive invalidation would rewrite history, which
+  invariant 1 forbids.
+- Compromise is handled by **revocation with an effective timestamp**: events signed by
+  the compromised key after that lamport point MUST be treated as unverified, and MUST
+  NOT be deleted.
+
+## §0.7 Retention and the right to be forgotten
+
+The no-delete invariant and data-protection obligations are reconciled through the
+commitment structure, not through exceptions:
+
+- Personal data lives in the payload, which is NOT part of the required public record.
+- Erasure is performed by destroying the payload and salt held by the subject and by
+  each disclosed party. The commitment remains and becomes permanently un-openable.
+- A conformant implementation MUST be able to demonstrate that it holds no payload for
+  a given event, and MUST NOT retain a payload after an erasure request it is obliged to
+  honour.
+- The event itself — that something of a type happened, at a point in the order —
+  remains. This is the part that MUST NOT be deleted, and it carries no personal data.
+
+**Rationale (non-normative).** This is the only design the authors found that satisfies
+both an auditable history and a real erasure obligation. Storing personal data in the
+immutable record and then promising not to look at it satisfies neither.
+
+## §0.8 Conformance checklist
+
+An implementation claiming `FBP-00` MUST demonstrate:
+
+- [ ] No update or delete path exists, including for operators.
+- [ ] Events sign offline, with no network call in the signing path.
+- [ ] Canonical serialisation is byte-identical against the published test vectors.
+- [ ] Orphan events buffer and later apply correctly, including insertion before
+      already-applied events.
+- [ ] Duplicate delivery is idempotent.
+- [ ] Two nodes fed the same events in different orders converge to the same stream
+      digest.
+- [ ] An event verifies with no payload present.
+- [ ] Stream identifiers are opaque and unlinkable to their subject.

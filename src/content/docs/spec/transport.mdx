@@ -1,0 +1,173 @@
+---
+title: Resilience Transport · Plane 0
+description: The offline-first floor — local signing, durable queues, mesh carriage over Reticulum/LXMF, LoRa and WiFi HaLow bearer tiers, the three node tiers, and eventual consistency presented honestly.
+specVersion: v0.1-draft
+normative: normative
+status: draft
+sidebar:
+  order: 9
+---
+
+import PlaneStack from '../../../components/PlaneStack.astro';
+import Mermaid from '../../../components/Mermaid.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+<PlaneStack active={0} compact />
+
+Plane 0 is the floor. Everything above it assumes that a person can act, and that their
+action is durable and attributable, before any network is involved.
+
+## §T.1 The offline-first requirement
+
+<Aside type="danger" title="Normative">
+An event MUST be signable, durable and locally valid with **no network of any kind**
+available. Connectivity is a delivery concern, NEVER a validity concern.
+</Aside>
+
+Specifically:
+
+1. **Signing is local.** The signing path MUST NOT contain a network call. An
+   implementation that fetches a nonce, a server timestamp or a session token in order
+   to sign is not conformant.
+2. **Queues are durable.** A signed event MUST be persisted before the person is told it
+   was accepted, and MUST survive process kill, power loss and OS upgrade.
+3. **Acceptance is not settlement.** The interface MUST distinguish *accepted locally*,
+   *in flight*, and *reconciled*. Presenting a locally accepted event as settled is a
+   conformance failure.
+4. **No expiring intents.** A queued event MUST NOT expire merely because it has not
+   been delivered. Where a primitive's semantics do expire (a gate, a grant), expiry is
+   evaluated in lamport progress on merge, not by the queue.
+5. **Bounded queues fail loudly.** Where storage is exhausted, the implementation MUST
+   refuse new events with a clear message. It MUST NOT drop the oldest, and MUST NOT
+   drop silently.
+
+## §T.2 Carriage
+
+An implementation MUST support at least one mesh path in addition to any internet path,
+and MUST NOT require the internet path to exist.
+
+**Reticulum / LXMF class.** The REQUIRED mesh model is store-and-forward, cryptographically
+addressed, with no dependence on a central directory:
+
+- Addressing MUST be by cryptographic destination, not by an allocated address from a
+  registry.
+- Delivery MUST be store-and-forward: an intermediate node MAY hold a message for hours
+  or days.
+- An intermediate node MUST NOT be able to read the payload it carries, and MUST NOT be
+  required to be trusted for integrity — the event's own signature is the integrity
+  guarantee.
+- Delivery MAY be out of order and MAY be duplicated. FBP-00 §0.5 handles both; the
+  transport MUST NOT attempt to hide them by reordering or deduplicating incorrectly.
+- Routing metadata MUST NOT expose a stable subject identity. See
+  [Privacy Core §P.6](/spec/privacy-core/#p6-metadata-is-data).
+
+### Bearer tiers
+
+| Tier | Typical range | Typical payload | Role |
+| --- | --- | --- | --- |
+| **LoRa** | kilometres | hundreds of bytes per frame | Long-range carriage. Events MUST be fragmentable to fit; a primitive MUST NOT require a single frame larger than a LoRa MTU to be valid. |
+| **WiFi HaLow (802.11ah)** | hundreds of metres | kilobytes | Local higher-bandwidth carriage. Used for bulk reconciliation between nearby nodes. |
+| Internet (any) | global | unbounded | An OPTIONAL accelerator. MUST NOT be a precondition for any primitive. |
+
+An implementation MUST support at least one of LoRa or WiFi HaLow where the hardware
+permits, and SHOULD support both. A deployment that supports only the internet path MUST
+declare that as a non-conformance to this section.
+
+**Design consequence (normative).** Because LoRa frames are small, the *envelope* of an
+event MUST stay compact: commitments rather than payloads, identifiers rather than
+names, and proofs carried separately from the envelope where the primitive allows. A
+design that only fits on broadband is not a Plane 0 design.
+
+## §T.3 Node tiers
+
+Three tiers are defined. A node MUST declare its tier, and MUST NOT claim capabilities
+of a higher tier it does not have.
+
+<Mermaid title="The three node tiers and the paths between them.">
+flowchart LR
+  L1["Leaf<br/>phone · sensor · handheld"] <--> R1["Relay<br/>solar node · vehicle · shop"]
+  L2["Leaf"] <--> R1
+  R1 <--> R2["Relay"]
+  R2 <--> G["Gateway<br/>bridges mesh ↔ internet"]
+  G <--> I(("Internet<br/>peers"))
+  L3["Leaf<br/>fully offline for weeks"] <--> R2
+</Mermaid>
+
+**Leaf.** Signs, queues, and syncs opportunistically with any peer in range.
+
+- MUST sign and queue locally and MUST hold its own keys.
+- MAY hold a partial ledger — only the streams it needs.
+- MUST NOT be required to be reachable. A leaf that is offline for weeks is normal
+  operation, not an error.
+
+**Relay.** Carries events for others.
+
+- MUST store and forward events it cannot deliver immediately, subject to declared
+  capacity.
+- MUST NOT be able to read payloads, and MUST NOT be trusted for integrity.
+- MUST NOT reorder events or drop duplicates in a way that changes what a receiver
+  computes; the receiver's merge is authoritative.
+- SHOULD publish its capacity and retention policy so that leaves can reason about
+  delivery expectations.
+
+**Gateway.** Bridges the mesh to the internet.
+
+- MUST be treated as an untrusted relay with a longer reach. A gateway MUST NOT gain any
+  authority by virtue of bridging.
+- MUST NOT be a required participant. A mesh with no gateway MUST continue to function
+  among its own members.
+- MUST NOT terminate or re-sign events. A gateway that re-signs is authoring, not
+  carrying.
+- SHOULD apply rate limiting and abuse controls at its own boundary, and MUST record
+  what it dropped locally so the omission is discoverable.
+
+## §T.4 Reconciliation
+
+- Reconciliation MUST use the deterministic merge of [FBP-00 §0.5](/spec/fbp-00-ledger/#05-deterministic-merge).
+  Plane 0 does not resolve anything; it delivers.
+- Two nodes reconciling MUST exchange a compact summary first (a stream digest or set
+  reconciliation structure) and transfer only the difference. Full-ledger transfer over
+  a LoRa bearer is not viable and MUST NOT be the only mode.
+- Reconciliation MUST be resumable. A partial exchange interrupted by range loss MUST
+  resume rather than restart.
+- A node MUST NOT mark a stream reconciled until every buffered orphan for that stream
+  has either applied or been recorded as still-missing.
+
+## §T.5 Eventual consistency, presented honestly
+
+<Aside type="danger" title="Normative — how this is shown to a person">
+Pending MUST be shown as pending. An implementation MUST NOT present an unreconciled
+event as settled, and MUST NOT present it as failed.
+</Aside>
+
+- Every event visible to a person MUST carry a state: `local`, `in flight`,
+  `reconciled`, or `conflicted`.
+- Where a value depends on unreconciled events, the implementation MUST indicate that
+  the value is provisional. Showing a provisional balance as final is a conformance
+  failure — it is the failure mode that makes offline systems feel untrustworthy.
+- A conflict MUST be surfaced to the affected parties, with both sides visible, and MUST
+  NOT be resolved silently by the transport.
+- An implementation MUST NOT block a person from acting because reconciliation is
+  pending, except where a primitive's invariant requires it (for example, a spend that
+  cannot be proven within balance MUST fail closed).
+
+## §T.6 Security at the floor
+
+- Transport encryption is REQUIRED in addition to payload commitments. A relay MUST NOT
+  see even the event envelope in cleartext where the bearer permits encryption.
+- Replay MUST be handled by idempotence at the ledger layer, not by transport state.
+- A node MUST NOT accept an event whose signature does not verify, and MUST NOT forward
+  it either — forwarding invalid events is an amplification vector.
+- Denial of service at a relay MUST degrade to slower carriage, never to accepting
+  unverified events.
+
+## §T.7 Conformance checklist
+
+- [ ] An event signs and persists with the device in airplane mode.
+- [ ] Signed events survive a hard power loss.
+- [ ] The queue never silently drops; exhaustion is a loud, clear refusal.
+- [ ] At least one mesh bearer is implemented and works with no internet route.
+- [ ] Events fragment to fit the smallest supported bearer MTU.
+- [ ] Relays cannot read payloads and cannot alter merge outcomes.
+- [ ] A gateway's removal does not stop the local mesh.
+- [ ] Every displayed event carries an honest state, and provisional values are marked.

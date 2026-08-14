@@ -1,0 +1,206 @@
+---
+title: §1 · Architecture — the Five Planes
+description: The five-plane architecture of the FlowBond Protocol, the layering rule that binds them, and what each plane is permitted to know.
+specVersion: v0.1-draft
+normative: normative
+status: draft
+sidebar:
+  order: 2
+---
+
+import PlaneStack from '../../../components/PlaneStack.astro';
+import Mermaid from '../../../components/Mermaid.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+The protocol is organised into five planes. The stack reads top-down: Plane 4 is
+closest to a person using a product, Plane 0 is closest to physics.
+
+<PlaneStack />
+
+## §1.1 The layering rule
+
+<Aside type="danger" title="Normative — the only structural rule">
+A plane MUST communicate only with the plane directly below it, through that plane's
+published interface. A plane MUST NOT reach past its neighbour, and MUST NOT depend on
+the internal state of any other plane.
+</Aside>
+
+Consequences that follow from the rule alone, and are therefore also normative:
+
+1. An application (Plane 4) MUST NOT write to the ledger directly. It calls a primitive
+   on Plane 2, which writes.
+2. An agent (Plane 3) MUST NOT construct a raw ledger event. It calls a primitive, like
+   any other caller, and is subject to the same authorisation checks.
+3. A primitive (Plane 2) MUST NOT assume connectivity. It hands a signed event to
+   Plane 0's queue and treats acknowledgement as asynchronous.
+4. A primitive MUST NOT publish a value that Plane 1 requires to remain private. Where
+   the two conflict, Plane 1 wins.
+5. No plane MAY offer a "fast path" that skips a lower plane for a named consumer. A
+   side door for one caller is a side door for every caller who discovers it.
+
+**Rationale (non-normative).** Most protocol failures are not cryptographic; they are
+architectural. A privileged bypass introduced for a launch deadline outlives the
+deadline by years. The layering rule is enforceable by review: an implementation either
+has a call path from Plane 4 to Plane 1 that skips Plane 2, or it does not.
+
+<Mermaid title="Permitted call paths between planes. Every arrow crosses exactly one boundary.">
+flowchart TD
+  P4["Plane 4 · Applications"] --> P3["Plane 3 · Companion OS"]
+  P4 --> P2["Plane 2 · Protocol · Layer 0"]
+  P3 --> P2
+  P2 --> P1["Plane 1 · Privacy Core"]
+  P1 --> P0["Plane 0 · Resilience Transport"]
+  P4 -. forbidden .-> P1
+  P3 -. forbidden .-> P0
+</Mermaid>
+
+An application MAY call Plane 2 directly without an agent; Plane 3 is OPTIONAL in a
+deployment. What is forbidden is skipping *downward* past a plane that is present.
+
+## §1.2 Plane 4 · Applications
+
+Products built on the protocol. This plane is where a person actually is.
+
+**Requirements.**
+
+- An application MUST hold only scoped grants over the identities it touches. It MUST
+  NOT store, mirror or re-issue an identity it did not create, and it MUST NOT treat a
+  grant as ownership. See [FBP-01](/spec/fbp-01-fbid/#scoped-grants).
+- An application MUST operate under the same license terms as every other application.
+  There is no tier of consumer with additional protocol rights.
+- An application MUST tolerate the loss of every other application. Cross-application
+  assumptions are not part of the protocol and MUST NOT be relied on.
+- An application MUST continue to function, in a reduced mode, when Plane 0 has no path
+  to any peer. "Reduced" MUST be defined by the application and MUST NOT include
+  silently discarding user actions.
+- Application profiles — compositions of existing primitives that add no new primitive
+  — live on this plane. The [Passport profile](/spec/profiles/passport/) is one.
+
+**Prohibitions.**
+
+- An application MUST NOT extend a primitive's semantics. If it needs a behaviour the
+  primitive does not have, that is an [RFC](/governance/rfc-process/), not a local
+  patch.
+- An application MUST NOT persist a person's private state outside that person's
+  control as a condition of use.
+
+## §1.3 Plane 3 · Companion OS
+
+Agents that act on behalf of a person — a class of software, not a product. The
+normative interface is specified in full at [Agent Interface](/spec/agent-interface/);
+this section states the architectural position.
+
+- An agent MUST act only through protocol primitives. Any capability an agent has, a
+  human caller MUST also have through the same interface.
+- Every value-moving action an agent takes MUST pass a **spend gate**: an explicit,
+  auditable authorisation boundary with a limit, a scope and an expiry.
+- An agent MUST NOT hold a credential that its principal cannot revoke, and revocation
+  MUST take effect without the agent's cooperation.
+- An agent's actions MUST be attributable on the ledger to both the agent and the
+  principal it acted for. An action that cannot be attributed MUST be rejected.
+- There are **no side doors**: no private API, no elevated key, no "agent mode" that
+  relaxes a check.
+
+## §1.4 Plane 2 · Protocol (Layer 0)
+
+The four primitives, written over the append-only ledger.
+
+| Identifier | Primitive | Answers |
+| --- | --- | --- |
+| [`FBP-00`](/spec/fbp-00-ledger/) | Ledger | What happened, in what order, provably? |
+| [`FBP-01`](/spec/fbp-01-fbid/) | FBID | Who is this, and what can they prove? |
+| [`FBP-02`](/spec/fbp-02-flowshare/) | FlowShare | Who gets which share of what, and when does it release? |
+| [`FBP-03`](/spec/fbp-03-stableflow/) | StableFlow | What may be spent inside a closed economy? |
+| [`FBP-04`](/spec/fbp-04-lifekey/) | LifeKey | What holds when the parties are not in the room? |
+
+**Requirements.**
+
+- Every primitive MUST express its state transitions as ledger events under FBP-00.
+  A primitive with private mutable state outside the ledger is not conformant.
+- Primitives MAY compose. A primitive MUST NOT be redefined by a composition — a
+  profile that "extends" `FBP-02` with new release semantics is defining a new
+  primitive and MUST go through the RFC process.
+- The set of primitives is deliberately small and closed at four. Adding a fifth is a
+  `MAJOR` version change under the [versioning policy](/governance/versioning/).
+
+**Rationale (non-normative).** Four primitives is not an aesthetic target. It is the
+smallest set that covers the four irreducible questions above; a fifth primitive that
+can be expressed as a composition of these four is a profile, and belongs on Plane 4.
+
+## §1.5 Plane 1 · Privacy Core (ZK)
+
+The full obligations are at [Privacy Core](/spec/privacy-core/). Architecturally:
+
+<Aside type="danger" title="Core invariant">
+Every primitive MUST prove without revealing. Public protocol state consists of
+**commitments and proofs**. Contents are NEVER public protocol state.
+</Aside>
+
+- Public state MUST be limited to commitments, proofs, and the minimum metadata needed
+  to order and verify events.
+- Compliance and disclosure MUST be achieved through **selective disclosure** —
+  view keys and scoped credentials issued by the subject — and NEVER by publishing
+  open data or by a back channel that bypasses the subject.
+- The choice of proving system is an **implementation profile**. This specification
+  defines *what* MUST be provable and *what* MUST NOT be learnable; it does not mandate
+  a curve, a circuit language or a trusted setup.
+- A deployment that cannot yet produce a required proof MUST NOT substitute
+  "trust the operator". It MUST either withhold the feature or publish the gap
+  explicitly as a documented non-conformance.
+
+**Rationale (non-normative).** Privacy stated as a policy is revocable by whoever holds
+the database. Privacy stated as an invariant of the data model survives a change of
+management, a subpoena of the wrong scope, and a breach.
+
+## §1.6 Plane 0 · Resilience Transport
+
+The offline-first floor. Full requirements at [Transport](/spec/transport/).
+
+- Events MUST be signed **locally**, before any network is involved. Signing MUST NOT
+  require a server.
+- Signed events MUST queue durably on the device and MUST survive process restart and
+  power loss.
+- The transport MUST support a mesh path — a Reticulum/LXMF-class store-and-forward
+  network — in addition to any internet path, and MUST NOT require the internet path to
+  exist.
+- Bearer tiers: **LoRa** for long-range low-bandwidth carriage and **WiFi HaLow** for
+  higher-bandwidth local carriage. An implementation MUST support at least one and
+  SHOULD support both where hardware permits.
+- Three node tiers are defined — leaf, relay, gateway — in [Transport §3](/spec/transport/#node-tiers).
+- The system is **eventually consistent by design**. An implementation MUST NOT present
+  eventual consistency as an error state to a person, and MUST show pending events as
+  pending rather than as failed or as settled.
+
+<Mermaid title="Lifecycle of an event from local signature to reconciled ledger state.">
+sequenceDiagram
+  participant U as Person / Agent
+  participant P as Primitive (Plane 2)
+  participant Z as Privacy Core (Plane 1)
+  participant Q as Local queue (Plane 0)
+  participant M as Mesh / Internet
+  U->>P: intent
+  P->>Z: commit payload, build proof
+  Z-->>P: commitment + proof
+  P->>Q: signed event (append-only)
+  Note over Q: durable, survives restart<br/>no network required
+  Q-->>U: accepted · pending
+  Q->>M: when a path exists
+  M->>Q: peer events
+  Note over Q: deterministic merge<br/>FBP-00 §merge
+  Q-->>U: reconciled
+</Mermaid>
+
+## §1.7 What the architecture guarantees
+
+Taken together, the five planes give three properties that MUST hold in any conformant
+deployment:
+
+1. **Attributability.** Every state change is an event, signed, ordered and traceable to
+   a principal — including changes made by agents.
+2. **Non-disclosure.** Attributability does not imply readability. History is provable
+   without being legible to anyone the subject did not authorise.
+3. **Survivability.** The absence of a network degrades latency, not correctness. No
+   plane above 0 is permitted to assume otherwise.
+
+An implementation that gives up any one of these is not a slower or smaller FlowBond.
+It is a different protocol, and MUST NOT be described as this one.

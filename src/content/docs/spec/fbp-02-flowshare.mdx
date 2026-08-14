@@ -1,0 +1,224 @@
+---
+title: FBP-02 · FlowShare
+description: Splits and conditional payout as verifiable ledger events — split objects, release conditions, settlement, the conditional-release profile, zero custody, and terms that stay private between the parties.
+specVersion: v0.1-draft
+normative: normative
+status: draft
+fbp: FBP-02
+sidebar:
+  order: 5
+---
+
+import Mermaid from '../../../components/Mermaid.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+`FBP-02` answers one question: **who gets which share of what, and when does it
+release?** It defines the agreement, not the money movement. The money moves on a rail;
+the protocol records that it was owed, that a condition was met, and that it settled.
+
+## Invariants
+
+<Aside type="danger" title="Normative — FBP-02 invariants">
+1. **Zero custody, ever.** A conformant implementation MUST NEVER take possession of participants' funds. Value moves participant-to-participant over a rail; the protocol never sits in the middle holding a balance.
+2. **Splits MUST sum to the whole.** Every split MUST total exactly 100% of its basis, expressed in integer basis points summing to `10000`. A split that does not sum MUST be rejected at creation.
+3. **Conditions are events, not opinions.** A release condition MUST be evaluable against ledger events. A condition that requires a human to assert "done" MUST record that assertion as a signed event by a named party.
+4. **No silent re-cut.** A split's shares MUST NOT change after value has accrued against it. Changes create a new version, and accrued amounts settle against the version in force when they accrued.
+5. **Terms are private.** Split terms MUST NOT be public protocol state. The network sees commitments and settlement proofs.
+</Aside>
+
+## §2.1 The split object
+
+```json title="Split — normative schema"
+{
+  "v": 1,
+  "id": "sp_01J91…",
+  "stream": "s_4e18…",
+  "basis": {
+    "unit": "minor",
+    "currency_commitment": "0x71d…",
+    "scope": "per_transaction"
+  },
+  "shares": [
+    { "party": "fbid:z6Mk…A", "bp": 6000, "role": "creator" },
+    { "party": "fbid:z6Mk…B", "bp": 2500, "role": "collaborator" },
+    { "party": "fbid:z6Mk…C", "bp": 1500, "role": "referrer" }
+  ],
+  "conditions": ["cond_01J91…"],
+  "version": 1,
+  "supersedes": null,
+  "effective_from": { "lamport": 5120 },
+  "terms_commitment": { "alg": "sha256", "digest": "…", "salt_commitment": "0x…" },
+  "proof": { "profile": "fbp1.groth16.bn254", "statement": "split_sums_to_whole" }
+}
+```
+
+| Field | Rules |
+| --- | --- |
+| `basis.unit` | MUST be `minor` (smallest indivisible unit) or `credit` (an FBP-03 economy unit). Floating point MUST NOT be used anywhere in this primitive. |
+| `basis.currency_commitment` | Commitment to the unit of account. The currency itself is a term and is therefore private by default. |
+| `basis.scope` | `per_transaction`, `per_period`, or `per_event`. Determines what a settlement settles. |
+| `shares[].bp` | Integer basis points. The array MUST sum to exactly `10000`. |
+| `shares[].party` | An FBID. A share MUST NOT be assigned to a bearer token, an anonymous address, or a role that is not bound to an identity. |
+| `version` / `supersedes` | Monotonic. A new version MUST reference the version it replaces. |
+| `effective_from` | Lamport point from which this version governs. MUST be ≥ the supersede event's lamport. |
+| `terms_commitment` | Commitment to the full human-readable terms. |
+
+### Rounding
+
+Rounding is a correctness problem, not a detail:
+
+- Allocation MUST use **largest-remainder** distribution over integer minor units: floor
+  each share, then assign remaining units one at a time to the largest fractional
+  remainders, breaking ties by ascending `party` bytewise.
+- The sum of allocated units MUST equal the basis exactly. A residual unit MUST NOT be
+  dropped, retained by the implementation, or rounded away.
+- The allocation function MUST be deterministic and identical across implementations —
+  two nodes computing a settlement MUST produce byte-identical allocations.
+
+## §2.2 Release conditions
+
+```json title="Condition"
+{
+  "id": "cond_01J91…",
+  "kind": "all_of",
+  "of": [
+    { "kind": "event_observed", "type": "fbp02.delivery.confirmed", "by": "fbid:z6Mk…B" },
+    { "kind": "time_elapsed", "after": { "lamport": 5400 } },
+    { "kind": "attestation", "statement": "milestone_2_accepted", "by": "fbid:z6Mk…A" },
+    { "kind": "proof", "statement": "escrow_funded_at_least", "profile": "fbp1.…" }
+  ],
+  "on_fail": "hold"
+}
+```
+
+Normative rules:
+
+- Condition kinds at `v0.1-draft`: `event_observed`, `time_elapsed`, `attestation`,
+  `proof`, `all_of`, `any_of`, `n_of`. Adding a kind is a `MINOR` change.
+- `time_elapsed` MUST be expressed in ledger progress (lamport), never in wall-clock
+  time. Wall clocks disagree; a mesh-delayed node MUST NOT release early or late because
+  its clock drifted.
+- Every condition MUST be evaluable by any party holding the relevant events. A
+  condition whose evaluation requires a call to a private service MUST NOT be used.
+- `on_fail` MUST be `hold` or `revert_to`. It MUST NOT be `release` — a failed condition
+  MUST NOT pay out.
+- Evaluation MUST be **monotonic**: once a condition is satisfied by a set of events, a
+  later event MUST NOT unsatisfy it. Reversals are new events with their own effects.
+
+## §2.3 Settlement
+
+Settlement is the record that value actually moved.
+
+```json title="Settlement event payload"
+{
+  "split": "sp_01J91…",
+  "split_version": 1,
+  "basis_amount": 129900,
+  "allocations": [
+    { "party": "fbid:z6Mk…A", "amount": 77940 },
+    { "party": "fbid:z6Mk…B", "amount": 32475 },
+    { "party": "fbid:z6Mk…C", "amount": 19485 }
+  ],
+  "rail": { "adapter_commitment": "0x5c3…", "external_ref_commitment": "0x1ab…" },
+  "state": "settled"
+}
+```
+
+- `state` MUST be one of `accrued`, `releasable`, `settling`, `settled`, `failed`,
+  `disputed`.
+- The sum of `allocations[].amount` MUST equal `basis_amount` exactly.
+- A settlement MUST reference the `split_version` in force at accrual, not the latest
+  version. This is what makes invariant 4 enforceable.
+- `failed` MUST be terminal for that attempt and MUST be followed by either a retry
+  event or a `disputed` event. A failure MUST NOT silently revert to `releasable`.
+- The external rail reference MUST be committed, not published. Payment processor
+  identifiers are a correlation surface and MUST NOT appear on the ledger in cleartext.
+
+<Mermaid title="Settlement state machine. Every transition is an appended event.">
+stateDiagram-v2
+  [*] --> accrued: value attributed to a split version
+  accrued --> releasable: all conditions satisfied
+  accrued --> disputed: party raises dispute
+  releasable --> settling: rail adapter engaged
+  settling --> settled: rail confirms
+  settling --> failed: rail declines
+  failed --> settling: retry (new event)
+  failed --> disputed: escalation
+  disputed --> releasable: resolution event
+  disputed --> [*]: terminated by resolution
+  settled --> [*]
+</Mermaid>
+
+## §2.4 Conditional-release profile (escrow)
+
+A profile of `FBP-02`, adding no new primitive. It composes a split, a condition set and
+a settlement, with three additional constraints:
+
+1. **Funding is attested, not held.** The protocol MUST NOT hold the funds. Funding is
+   attested either by a proof against a rail adapter or by a mutually signed attestation
+   from the payer and a counterparty. The ledger records that funding was proven, not
+   the funds.
+2. **Release is dual-keyed by construction.** The condition set MUST require at least two
+   distinct parties' events, or one party's event plus an elapsed interval. A
+   single-party instant release MUST NOT be called a conditional release.
+3. **Dispute has a defined terminal.** Every conditional release MUST name, at creation,
+   how a dispute terminates: a threshold of the parties, a named arbiter FBID, or an
+   automatic reversion after an interval. An escrow with no defined terminal MUST be
+   rejected at creation.
+
+**Reference instance (non-normative).** A two-party agreement where one side signs
+immediately and the other has never opened the document is the exact case this profile
+exists for: the deadline is on the ledger, the non-action is visible, and the reversion
+is automatic rather than a matter of chasing someone.
+
+## §2.5 Rails are adapters
+
+<Aside type="caution" title="Out of scope, on purpose">
+Card processors, marketplace payouts, bank transfers, in-app purchase and any
+future rail are **pluggable adapters** and are OUT OF SCOPE of this specification.
+</Aside>
+
+Normative constraints on adapters, which are in scope:
+
+- An adapter MUST NOT be able to alter a split, a condition, or an allocation. It
+  receives an instruction and reports an outcome.
+- An adapter MUST report outcomes as signed events. An adapter that cannot sign MUST be
+  fronted by a component that signs on its behalf and is itself accountable on the
+  ledger.
+- An adapter MUST NOT be required for the split to be valid. A split with no adapter is a
+  valid, unsettled agreement.
+- Adapter selection MUST NOT change the allocation. If a rail's fees change what each
+  party receives, those fees MUST be modelled as a share in the split, not deducted
+  invisibly at the rail.
+- An adapter MUST NOT be the sole holder of a fact the protocol needs. Every fact the
+  protocol relies on MUST be reconstructible from ledger events.
+
+## §2.6 Zero-knowledge obligations
+
+| MUST be provable | MUST NOT be revealed |
+| --- | --- |
+| The split sums to the whole | The share percentages |
+| A party is entitled to a settlement | Which party, to non-parties |
+| The allocation matches the split in force | The basis amount, to non-parties |
+| Conditions were satisfied before release | The content of the conditions |
+| Total settled equals total accrued for a period | Per-transaction amounts |
+
+- Split terms MUST be private between the parties. Non-parties observe commitments and
+  settlement proofs only.
+- A regulator or auditor MUST be served through a **scoped view key** issued for a named
+  period and purpose, and that issuance MUST itself be an event. Standing access to
+  cleartext terms MUST NOT be provisioned.
+- Aggregate integrity — "everything that accrued was settled" — MUST be publicly
+  verifiable without exposing any individual settlement.
+
+## §2.7 Conformance checklist
+
+- [ ] No code path exists in which the implementation holds participant funds.
+- [ ] A split whose basis points do not sum to `10000` is rejected at creation.
+- [ ] Largest-remainder allocation matches the published test vectors, including tie
+      cases.
+- [ ] Settlements reference the split version in force at accrual.
+- [ ] `time_elapsed` conditions use lamport progress and are unaffected by clock skew.
+- [ ] Every conditional release names its dispute terminal at creation.
+- [ ] Rail fees appear as shares, not as invisible deductions.
+- [ ] A non-party observer can verify aggregate integrity and learn no amounts.
