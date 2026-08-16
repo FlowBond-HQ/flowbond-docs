@@ -1,6 +1,6 @@
 ---
 title: The protocol beneath the worlds
-description: The canonical, versioned specification of the FlowBond Protocol — a Layer 0 of identity, value and intelligence that works offline and proves without revealing.
+description: 'The canonical, versioned specification of the FlowBond Protocol: a Layer 0 of identity, value and intelligence that works offline and proves without revealing.'
 template: splash
 tableOfContents: false
 editUrl: false
@@ -24,9 +24,9 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 ## What this document is
 
 This is the base document of the **FlowBond Foundation**: the normative specification
-of the FlowBond Protocol. It defines a small set of primitives — identity, split,
-credit, trust — over a single append-only ledger, and the obligations any
-implementation MUST meet to call itself conformant.
+of the FlowBond Protocol. It defines four primitives (identity, split, credit,
+trust) over a single append-only ledger, and the obligations any implementation
+MUST meet to call itself conformant.
 
 It is versioned, auditable and changed only through a public process. The git history
 of this repository **is** the audit log; the [changelog](/changelog/) is append-only;
@@ -41,7 +41,7 @@ implement against and the wording is still open to challenge. See
 <CardGrid>
   <Card title="FBP-01 · FBID">
     Portable identity. Verifiable claims, revocable links, five auth rails, recovery
-    that never hands custody to anyone. Consumers get scoped grants — never ownership.
+    that never hands custody to anyone. Consumers get scoped grants, never ownership.
     [Read →](/spec/fbp-01-fbid/)
   </Card>
   <Card title="FBP-02 · FlowShare">
@@ -51,7 +51,7 @@ implement against and the wording is still open to challenge. See
   </Card>
   <Card title="FBP-03 · StableFlow">
     Closed-loop credits, one economy instance per consumer, with a spend gate agents
-    must pass through. Credits NEVER redeem for cash — and no consumer can waive that.
+    must pass through. Credits NEVER redeem for cash, and no consumer can waive that.
     [Read →](/spec/fbp-03-stableflow/)
   </Card>
   <Card title="FBP-04 · LifeKey">
@@ -87,7 +87,7 @@ rule that shapes everything else: events are appended, never updated and never d
 
 <CardGrid>
   <Card title="If you are implementing">
-    Start with [how to read this spec](/spec/), then [FBP-00](/spec/fbp-00-ledger/) —
+    Start with [how to read this spec](/spec/), then [FBP-00](/spec/fbp-00-ledger/):
     every other primitive assumes its event model.
   </Card>
   <Card title="If you are reviewing">
